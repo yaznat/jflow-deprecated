@@ -43,7 +43,7 @@
 - **Embedding**  
 
 #### Supported Activation Functions  
-- **ReLU**, **LeakyReLU**, **Sigmoid**, **Tanh**, **Softmax**, **Swish**, **Mish**.  
+- **ReLU**, **LeakyReLU**, **Sigmoid**, **Tanh**, **Softmax**, **Swish**, **Mish**, **GELU**.  
 - **Custom Activation**: Easy to implement.  
 
 #### Supported Optimizers  
