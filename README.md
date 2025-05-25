@@ -9,7 +9,7 @@
 #### Memory Optimization  
 - **Low Memory Mode**: Train large models with limited resources (ideal for datasets larger than system memory).  
     - Example: **CIFAR-10 CNN**, 1M parameters, < 2GB RAM with low memory mode  
-    - Example: **CIFAR-10 CNN**, 5M parameters, < 3GB RAM with low memory mode  
+    - Example: **GPT-2 Small**, 124M parameters, < 11GB RAM  
 
 #### Low-level Control & Debugging  
 - Clean, Keras-similar UI for model training.  
