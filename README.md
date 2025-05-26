@@ -15,7 +15,7 @@
 ##### Training GPT-2 Small (124M parameters) - Apple M4 Max  
 - **Allocated 9GB RAM:** ~480,000 tokens/hour  
 - **Allocated 16GB RAM:** ~550,000 tokens/hour  
-- Note: Performance differences are due to Java memory allocation overhead, not low memory mode. Disabling gradient storage reduces memory usage but does not impact speed.  
+**Note:** Performance differences are due to Java memory allocation overhead, not low memory mode. Disabling gradient storage reduces memory usage but does not impact speed.  
 #### Low-level Control & Debugging  
 - Clean, Keras-similar UI for model training.  
 - Implement custom training steps easily.  
