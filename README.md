@@ -41,12 +41,13 @@
 - **Dense**  
 - **Conv2D**  
 - **MaxPool2D**  
+- **GlobalAveragePooling2D**  
 - **Upsampling2D**  
 - **BatchNorm**  
 - **LayerNorm**  
 - **Flatten**  
-- **GlobalAveragePooling2D**  
 - **Embedding**  
+- **Dropout**  
 
 #### Supported Activation Functions  
 - **ReLU**, **LeakyReLU**, **Sigmoid**, **Tanh**, **Softmax**, **Swish**, **Mish**, **GELU**.  
