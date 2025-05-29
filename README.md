@@ -1,21 +1,21 @@
 # JFlow  
 
-**JFlow** is a memory-efficient deep learning library designed in Java for both educational purposes and real-world machine learning applications. It provides low-level control over model training and supports limited hardware.  
+**JFlow** is a memory-efficient deep learning library written in Java, designed for both educational use and real-world machine learning applications. It provides low-level control over model training and supports limited hardware.  
 
 ![Alt text](readme-images/Callback-Example.png)  
 
 ### Strengths  
 
-#### Memory Optimization  
+#### 🧠 Memory Optimization  
 - **Low Memory Mode**: Train large models with limited resources (ideal for datasets larger than system memory).  
     - Example: **CIFAR-10 CNN**, 1M parameters, < 2GB RAM (with low memory mode enabled)  
     - Example: **GPT-2 Small**, 124M parameters, < 9GB RAM for a sequence length of 512 (with gradient storage disabled)  
-#### Performance Benchmarks
+#### ⚡ Performance Benchmarks
 
 ##### Training GPT-2 Small (124M parameters) - Apple M4 Max  
 - **Allocated 9GB RAM:** ~480,000 tokens/hour  
 - **Allocated 16GB RAM:** ~550,000 tokens/hour  
-**Note:** Performance differences are due to Java memory allocation overhead, not low memory mode. Disabling gradient storage reduces memory usage but does not impact speed.  
+ℹ️ Differences due to Java memory allocation, not low memory mode. Disabling gradient storage reduces memory but does not affect speed.  
 #### Low-level Control & Debugging  
 - Clean, Keras-similar UI for model training.  
 - Implement custom training steps easily.  
@@ -32,6 +32,7 @@
 - Normalize and augment images with built-in functions.  
 
 #### Sequential Model  
+![Alt text](readme-images/Summary-Example.png)  
 - Build models with a simple UI.  
     - High-level functions: train, predict.  
     - Low-level functions: forward(data), backward(data).  
