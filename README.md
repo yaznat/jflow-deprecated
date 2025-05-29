@@ -19,7 +19,7 @@
 #### Low-level Control & Debugging  
 - Clean, Keras-similar UI for model training.  
 - Implement custom training steps easily.  
-- Debug mode for inspecting gradients.  
+- Debug mode for inspecting gradients:  
 ![Alt text](readme-images/Debug-Example.png)  
 
 ### Key Features  
