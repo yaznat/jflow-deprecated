@@ -6,6 +6,7 @@ import java.util.stream.IntStream;
 
 
 
+
 public class JMatrix {
     private float[] matrix;
     private int length, channels, height, width;
@@ -961,6 +962,7 @@ public class JMatrix {
         });
         return sum;
     }
+
     /**
      * Rotate the JMatrix 90 degrees clockwise for 2D use cases.
      * Swaps the batch dimension (N) with the item dimension (C * H * W).
@@ -1209,6 +1211,38 @@ public class JMatrix {
     
         return new JMatrix(transposed, numBatches, newH, newW, 1);
     }
+
+    /**
+     * Rotate every height * width element by 90 degrees.
+     * @return A new JMatrix with the changes applied.
+     */
+    public JMatrix transpose4D() {
+        int newHeight = width;
+        int newWidth = height;
+        
+        float[] resultData = new float[size()];
+        
+        IntStream.range(0, length * channels).parallel().forEach(batchChannel -> {
+            int batch = batchChannel / channels;
+            int channel = batchChannel % channels;
+            
+            int oldOffset = batch * (channels * height * width) + channel * (height * width);
+            int newOffset = batch * (channels * newHeight * newWidth) + channel * (newHeight * newWidth);
+            
+            for (int h = 0; h < height; h++) {
+                for (int w = 0; w < width; w++) {
+                    int oldIndex = oldOffset + h * width + w;
+                    int newIndex = newOffset + w * newWidth + h; 
+                    resultData[newIndex] = matrix[oldIndex];
+                }
+            }
+        });
+        
+        return new JMatrix(resultData, length, channels, newHeight, newWidth);
+    }
+
+    
+
     /**
      * Compare the shape of two JMatrixes.
      * @param other             The JMatrix to compare this JMatrix with.
