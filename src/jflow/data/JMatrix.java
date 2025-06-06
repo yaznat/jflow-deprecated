@@ -222,7 +222,7 @@ public class JMatrix {
     
     /**
      * Copy a batch worth of elements into the proper location.
-     * @param batchIndex the starting index along the batch dimension.
+     * @param batchIndex the index along the batch dimension to copy into.
      * @param values a JMatrix of values to copy into this JMatrix.
      * @throws IllegalArgumentException if the size of values is unequal 
      * to the size of a channels * height * width slice of this JMatrix.
@@ -327,8 +327,8 @@ public class JMatrix {
 
     /**
      * Copies a slice of this JMatrix
-     * @param startIdx                  the 1D start index.
-     * @param endIdx                    the 1D end index.
+     * @param startIdx                  the 1D start index, inclusive.
+     * @param endIdx                    the 1D end index, exclusive.
      * @return                          a JMatrix containing the sliced values with shape (length, 1, 1, 1).
      */
     public JMatrix slice(int startIdx, int endIdx) {
@@ -754,7 +754,6 @@ public class JMatrix {
         
         return new JMatrix(result, length, channels, height, width);
     }
-
     /**
      * Perform log softmax along a given axis. Avoids overflow and underflow.
      * @param axis the axis to apply log softmax to: <p>
@@ -964,6 +963,7 @@ public class JMatrix {
     }
     /**
      * Rotate the JMatrix 90 degrees clockwise for 2D use cases.
+     * Swaps the batch dimension (N) with the item dimension (C * H * W).
      * @return A new JMatrix with the changes applied.
      */
     public JMatrix transpose2D() {
@@ -973,21 +973,57 @@ public class JMatrix {
         int newWidth = oldHeight;
 
         float[] rotated = new float[size()];
-
-        IntStream.range(0, oldHeight).parallel().forEach(row -> {
-            for (int col = 0; col < oldWidth; col++) {
-                int oldIndex = row * oldWidth + col;
-                int newIndex = col * newWidth + row;
-                rotated[newIndex] = access(oldIndex);
-            }
-        });
-
-        // Assign all features to channels for simplicity
+        
+        // Use cache-friendly block size
+        final int BLOCK_SIZE = 64;
+        final int PARALLEL_THRESHOLD = 4096;
+        
+        // For small matrices, use sequential processing
+        if (oldHeight * oldWidth <= PARALLEL_THRESHOLD) {
+            transposeBlock2D(rotated, 0, 0, oldHeight, oldWidth, oldWidth, oldHeight);
+        } else {
+            // Process in blocks for better cache locality
+            int numBlocksH = (oldHeight + BLOCK_SIZE - 1) / BLOCK_SIZE;
+            int numBlocksW = (oldWidth + BLOCK_SIZE - 1) / BLOCK_SIZE;
+            
+            IntStream.range(0, numBlocksH * numBlocksW).parallel().forEach(blockIdx -> {
+                int blockRow = blockIdx / numBlocksW;
+                int blockCol = blockIdx % numBlocksW;
+                
+                int rowStart = blockRow * BLOCK_SIZE;
+                int rowEnd = Math.min(rowStart + BLOCK_SIZE, oldHeight);
+                int colStart = blockCol * BLOCK_SIZE;
+                int colEnd = Math.min(colStart + BLOCK_SIZE, oldWidth);
+                
+                transposeBlock2D(rotated, rowStart, colStart, rowEnd, colEnd, oldWidth, newWidth);
+            });
+        }
+        // float[] rotated = MetalTranspose.transpose2D(matrix, oldHeight, oldWidth, false);
         return new JMatrix(rotated, newHeight, newWidth, 1, 1);
     }
 
     /**
-     * Tranpose the matrix by rearranging dimension according to a particular order
+     * Process a block of the 2D transpose operation
+     */
+    private void transposeBlock2D(float[] rotated, int rowStart, int colStart,
+                            int rowEnd, int colEnd, int oldWidth, int newWidth) {
+    for (int row = rowStart; row < rowEnd; row++) {        
+        for (int col = colStart; col < colEnd; col++) {    
+            // Convert feature index back to position in N,C,H,W 
+            int n = row;  // batch index
+            int chw = col; // flattened feature index
+            
+
+            int oldIndex = n * (channels * height * width) + chw;
+            
+            int newIndex = col * newWidth + row;  
+            rotated[newIndex] = access(oldIndex);
+        }
+    }
+}
+
+    /**
+     * Transpose the matrix by rearranging dimension according to a particular order
      * @param axis1 The dimension to use as the first dimension (0=N, 1=C, 2=H, 3=W)
      * @param axis2 The dimension to use as the second dimension (0=N, 1=C, 2=H, 3=W)
      * @param axis3 The dimension to use as the third dimension (0=N, 1=C, 2=H, 3=W)
@@ -997,7 +1033,6 @@ public class JMatrix {
         // Check input values
         int[] axes = {axis1, axis2, axis3, axis4};
         boolean[] used = new boolean[4];
-        
         for (int axis : axes) {
             if (axis < 0 || axis > 3) {
                 throw new IllegalArgumentException("Axis values must be between 0 and 3 inclusive");
@@ -1007,7 +1042,7 @@ public class JMatrix {
             }
             used[axis] = true;
         }
-        
+
         int[] dims = {length, channels, height, width};
         
         // Calculate new dimensions after transposition
@@ -1019,32 +1054,64 @@ public class JMatrix {
         // Output array
         float[] transposed = new float[size()];
         
-        // Calculate strides for the original array
-        int[] originalStrides = new int[4];
-        originalStrides[3] = 1;  // W dimension (innermost)
-        originalStrides[2] = width;  // H dimension
-        originalStrides[1] = height * width;  // C dimension
-        originalStrides[0] = channels * height * width;  // N dimension (outermost)
+        // Pre-calculate the permutation mapping for faster index calculation
+        int[] oldDims = {length, channels, height, width};
         
-        // Calculate new strides based on the new dimensions
+        // Pre-calculate strides for both original and new array
+        int[] oldStrides = new int[4];
+        oldStrides[3] = 1;                           // W dimension (innermost)
+        oldStrides[2] = width;                       // H dimension
+        oldStrides[1] = height * width;              // C dimension
+        oldStrides[0] = channels * height * width;   // N dimension (outermost)
+        
         int[] newStrides = new int[4];
-        newStrides[3] = 1;
-        newStrides[2] = newWidth;
-        newStrides[1] = newHeight * newWidth;
-        newStrides[0] = newChannels * newHeight * newWidth;
+        newStrides[3] = 1;                                   // W dimension
+        newStrides[2] = newWidth;                            // H dimension
+        newStrides[1] = newHeight * newWidth;                // C dimension
+        newStrides[0] = newChannels * newHeight * newWidth;  // N dimension
         
-        IntStream.range(0, length).parallel().forEach(n -> {
+        // Calculate exact number of elements for better work distribution
+        final int totalElements = length * channels * height * width;
+        final int THRESHOLD = 1024;
+        
+        // For small matrices, use a single-threaded approach
+        if (totalElements <= THRESHOLD) {
+            transposeSequential(transposed, axes, oldDims, oldStrides, newStrides);
+        } else {
+            int numThreads = Runtime.getRuntime().availableProcessors();
+            int blockSize = Math.max(1, totalElements / (numThreads * 4));
+            
+            IntStream.range(0, (totalElements + blockSize - 1) / blockSize)
+                    .parallel()
+                    .forEach(block -> {
+                        int start = block * blockSize;
+                        int end = Math.min(start + blockSize, totalElements);
+                        transposeBlock(transposed, axes, oldDims, oldStrides, newStrides, start, end);
+                    });
+        }
+        
+        return new JMatrix(transposed, newLength, newChannels, newHeight, newWidth);
+    }
+
+    /**
+     * Sequential transposition for small matrices
+     */
+    private void transposeSequential(float[] transposed, int[] axes, int[] oldDims, int[] oldStrides, int[] newStrides) {
+        int length = oldDims[0];
+        int channels = oldDims[1];
+        int height = oldDims[2];
+        int width = oldDims[3];
+        
+        for (int n = 0; n < length; n++) {
             for (int c = 0; c < channels; c++) {
                 for (int h = 0; h < height; h++) {
                     for (int w = 0; w < width; w++) {
                         // Original coordinates
                         int[] coords = {n, c, h, w};
                         
-                        // Calculate original index
-                        int originalIndex = n * originalStrides[0] + 
-                                           c * originalStrides[1] + 
-                                           h * originalStrides[2] + 
-                                           w * originalStrides[3];
+                        // Calculate original index directly without using array lookups in hot loop
+                        int originalIndex = n * oldStrides[0] + c * oldStrides[1] + 
+                                        h * oldStrides[2] + w * oldStrides[3];
                         
                         // Calculate new coordinates after transposition
                         int newN = coords[axes[0]];
@@ -1052,20 +1119,62 @@ public class JMatrix {
                         int newH = coords[axes[2]];
                         int newW = coords[axes[3]];
                         
-                        // Calculate new index
-                        int newIndex = newN * newStrides[0] + 
-                                      newC * newStrides[1] + 
-                                      newH * newStrides[2] + 
-                                      newW * newStrides[3];
+                        // Calculate new index directly
+                        int newIndex = newN * newStrides[0] + newC * newStrides[1] + 
+                                    newH * newStrides[2] + newW * newStrides[3];
                         
                         // Copy the value
                         transposed[newIndex] = access(originalIndex);
                     }
                 }
             }
-        });
+        }
+    }
+
+
+    private void transposeBlock(float[] transposed, int[] axes, int[] oldDims, int[] oldStrides, int[] newStrides, 
+                            int startIdx, int endIdx) {
+        // Pre-calculated values for the innermost loop
+        int axis1 = axes[0], axis2 = axes[1], axis3 = axes[2], axis4 = axes[3];
         
-        return new JMatrix(transposed, newLength, newChannels, newHeight, newWidth);
+        // Get the actual dimensions for bounds checking
+        int maxN = oldDims[0], maxC = oldDims[1], maxH = oldDims[2], maxW = oldDims[3];
+        
+        // Get a linear index and convert to 4D coordinates
+        for (int linearIdx = startIdx; linearIdx < endIdx; linearIdx++) {
+            // Convert linear index to NCHW coordinates
+            int remaining = linearIdx;
+            int n = remaining / oldStrides[0];
+            remaining %= oldStrides[0];
+            int c = remaining / oldStrides[1];
+            remaining %= oldStrides[1];  
+            int h = remaining / oldStrides[2];
+            int w = remaining % oldStrides[2]; // This is correct - remaining mod width
+            
+            // Bounds check to prevent IndexOutOfBounds
+            if (n >= maxN || c >= maxC || h >= maxH || w >= maxW) {
+                continue; // Skip invalid coordinates
+            }
+            
+            // Original coordinates
+            int[] oldCoords = {n, c, h, w};
+            
+            // Map to new coordinates based on axis permutation
+            int newN = oldCoords[axis1];
+            int newC = oldCoords[axis2];
+            int newH = oldCoords[axis3]; 
+            int newW = oldCoords[axis4];
+            
+            // Calculate new index
+            int newIdx = newN * newStrides[0] + newC * newStrides[1] + 
+                        newH * newStrides[2] + newW * newStrides[3];
+            
+            // Bounds check for output array
+            if (newIdx >= 0 && newIdx < transposed.length) {
+                // Copy the value 
+                transposed[newIdx] = access(linearIdx);
+            }
+        }
     }
 
     /**
@@ -1105,7 +1214,7 @@ public class JMatrix {
      * @param other             The JMatrix to compare this JMatrix with.
      * @return                  True if the JMatrixes have the same shape.
      */
-    public boolean isSameShapeAs(JMatrix other) {
+    public boolean shapeEquals(JMatrix other) {
         return length == other.length() && channels == other.channels()
             && height == other.height() && width == other.width();
     }
