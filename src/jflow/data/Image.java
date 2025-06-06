@@ -9,13 +9,13 @@ import java.util.function.Function;
 import javax.imageio.ImageIO;
 
 public class Image {
-    private float[][][] originalImage;
+    private JMatrix originalImage;
     private int yData, channels;
-    private float[][][] xData;
+    private JMatrix xData;
     private boolean grayscale, lowMemoryMode, loadedFromCSV = false;
     private String path;
-    private ArrayList<Function<float[][][], float[][][]>> transforms = 
-    new ArrayList<Function<float[][][], float[][][]>>();
+    private ArrayList<Function<JMatrix, JMatrix>> transforms = 
+    new ArrayList<Function<JMatrix, JMatrix>>();
 
 
     /*
@@ -35,18 +35,18 @@ public class Image {
         this.channels = 1;
         this.loadedFromCSV = true;
         int size = (int)Math.pow(image.length, 0.5);
-        originalImage = new float[1][size][size];
+        originalImage = new JMatrix(1, 1, size, size);
 
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
-                originalImage[0][i][j] = image[i * size + j];
+                originalImage.set(0, 0, i, j, image[i * size + j]);
             }
         }
         yData = label;
     }
 
-    protected Image(float[][][] image, int label) {
-        this.channels = image.length;
+    protected Image(JMatrix image, int label) {
+        this.channels = image.channels();
         originalImage = image;
         yData = label;
     }
@@ -68,31 +68,27 @@ public class Image {
     }
 
     private void applyTransforms() {
-        for (Function<float[][][], float[][][]> transform : transforms) {
+        for (Function<JMatrix, JMatrix> transform : transforms) {
             xData = transform.apply(xData);
         }
     }
 
-    protected void addTransform(Function<float[][][], float[][][]> transform) {
+    protected void addTransform(Function<JMatrix, JMatrix> transform) {
         transforms.add(transform);
     }
 
-    public float[][][] getData() {
-        if (xData == null) {
-            // CSV images can't be reloaded
-            if (loadedFromCSV) {
-                xData = originalImage;
-            } else {
-                load();
-            }
-            applyTransforms();
+    public JMatrix getData() {
+        loadingSequence();
+        JMatrix copyReference = originalImage;
+        if (lowMemoryMode) {
+            unload();
         }
-        return xData;
+        return copyReference;
     }
 
     public float getPixel(int flatIndex) {
-        int height = xData[0].length;
-        int width = xData[0][0].length;
+        int height = xData.height();
+        int width = xData.width();
         int channelSize = height * width;
 
         int channelIndex = flatIndex / channelSize;
@@ -100,63 +96,32 @@ public class Image {
         int heightIndex = reuse / width;
         int widthIndex = reuse % width;
 
-        return xData[channelIndex][heightIndex][widthIndex];
+        return xData.get(0, channelIndex, heightIndex, widthIndex);
     }
 
     public int getLabel() {
         return yData;
     }
 
-
-
-    // Flatten the image to 1D, keeping channels separate
-    public float[] getFlat() {
-        if (xData == null) {
-            // CSV images can't be reloaded
-            if (loadedFromCSV) {
-                xData = originalImage;
-            } else {
-                load();
-            }
-            applyTransforms();
-        }
-        int channels = xData.length;
-        int height = xData[0].length;
-        int width = xData[0][0].length;
-        float[] flat = new float[channels * 
-            height * width];
-        int index = 0;
-        for (int c = 0; c < channels; c++) {
-            for (int h = 0; h < height; h++) {
-                for (int w = 0; w < width; w++) {
-                    flat[index++] = xData[c][h][w]; 
-                }
-            }
-        }
-        if (lowMemoryMode) {
-            unload();
-        }
-        return flat;
-    }
-
-    public float[][][] getPixels() {
+    public JMatrix getPixels() {
         if (originalImage == null) {
             load();
         }
-        return originalImage;
+        JMatrix copyReference = originalImage;
+        if (lowMemoryMode) {
+            unload();
+        }
+
+        return copyReference;
     }
 
     public int getWidth() {
-        if (xData == null) {
-            // CSV images can't be reloaded
-            if (loadedFromCSV) {
-                xData = originalImage;
-            } else {
-                load();
-            }
-            applyTransforms();
+        loadingSequence();
+        JMatrix copyReference = originalImage;
+        if (lowMemoryMode) {
+            unload();
         }
-        return xData[0][0].length;
+        return copyReference.width();
     }
 
     public int numChannels() {
@@ -164,6 +129,15 @@ public class Image {
     }
 
     public int getHeight() {
+        loadingSequence();
+        JMatrix copyReference = originalImage;
+        if (lowMemoryMode) {
+            unload();
+        }
+        return copyReference.height();
+    }
+
+    private void loadingSequence() {
         if (xData == null) {
             // CSV images can't be reloaded
             if (loadedFromCSV) {
@@ -173,7 +147,6 @@ public class Image {
             }
             applyTransforms();
         }
-        return xData[0].length;
     }
 
     private void unload() {
@@ -207,33 +180,33 @@ public class Image {
 
 
     // Load an image as grayscale: (1, height, width)
-    private float[][][] loadGrayscaleImage(BufferedImage img) {
+    private JMatrix loadGrayscaleImage(BufferedImage img) {
         int width = img.getWidth();
         int height = img.getHeight();
-        float[][][] grayscaleArray = new float[1][height][width]; 
+        JMatrix grayscaleArray = new JMatrix(1, 1, height, width); 
 
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 int argb = img.getRGB(x, y);
                 int gray = argb & 0xFF; 
-                grayscaleArray[0][y][x] = gray; // Any
+                grayscaleArray.set(0, 0, y, x, gray);
             }
         }
         return grayscaleArray;
     }
 
     // Load an image as RGB: (3, height, width)
-    private float[][][] loadRGBImage(BufferedImage img) {
+    private JMatrix loadRGBImage(BufferedImage img) {
         int width = img.getWidth();
         int height = img.getHeight();
-        float[][][] rgbArray = new float[3][height][width]; 
+        JMatrix rgbArray = new JMatrix(1, 3, height, width); 
 
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 int argb = img.getRGB(x, y);
-                rgbArray[0][y][x] = (argb >> 16) & 0xFF; // Red
-                rgbArray[1][y][x] = (argb >> 8)  & 0xFF; // Green
-                rgbArray[2][y][x] = (argb)       & 0xFF; // Blue
+                rgbArray.set(0, 0, y, x, (argb >> 16) & 0xFF); // Red
+                rgbArray.set(0, 0, y, x, (argb >> 8)  & 0xFF); // Green
+                rgbArray.set(0, 0, y, x, (argb)       & 0xFF); // Blue
             }
         }
         return rgbArray;

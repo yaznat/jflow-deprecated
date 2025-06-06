@@ -1,10 +1,11 @@
 package jflow.data;
 import java.util.ArrayList;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 
 public class Transform {
     // Store transforms
-    private ArrayList<Function<float[][][], float[][][]>> transforms;
+    private ArrayList<Function<JMatrix, JMatrix>> transforms;
     // Keep track of image bounds for clipping
     private int[] normBounds = new int[2];
     /**
@@ -14,7 +15,7 @@ public class Transform {
         transforms = new ArrayList<>();
     }
 
-    protected ArrayList<Function<float[][][], float[][][]>> getTransforms() {
+    protected ArrayList<Function<JMatrix, JMatrix>> getTransforms() {
         return transforms;
     }
 
@@ -31,7 +32,7 @@ public class Transform {
         normBounds[1] = 1;
         transforms.add(
             image -> {
-                return DataUtility.multiply(image, 1.0 / 255);
+                return image.multiply(1.0 / 255);
 
             }
         );
@@ -46,7 +47,7 @@ public class Transform {
         normBounds[1] = 1;
         transforms.add(
             image -> {
-                return DataUtility.add(DataUtility.multiply(image, 1 / 127.5), -1);
+                return image.multiply(1 / 127.5).subtractInPlace(1);
             }
         );
         return this;
@@ -58,16 +59,17 @@ public class Transform {
     public Transform grayscaleFullContrast() {
         transforms.add(
             image -> {
-                int channels = image.length;
-                int height = image[0].length;
-                int width = image[0][0].length;
+                int channels = image.channels();
+                int height = image.height();
+                int width = image.width();
         
-                float[][][] contrasted = new float[channels][height][width];
+                JMatrix contrasted = image.zerosLike();
 
                 for (int c = 0; c < channels; c++) {
                     for (int i = 0; i < height; i++) {
                         for (int j = 0; j < width; j++) {
-                            contrasted[c][i][j] = (image[c][i][j] > 0) ? 255 : 0;
+                            contrasted.set(0, c, i, j, (image.get
+                                (0, c, i, j) > 0) ? 255 : 0);
                         }
                     }
                 }
@@ -84,16 +86,16 @@ public class Transform {
     public Transform invert() {
         transforms.add(
             image -> {
-                int channels = image.length;
-                int height = image[0].length;
-                int width = image[0][0].length;
+                int channels = image.channels();
+                int height = image.height();
+                int width = image.width();
         
-                float[][][] inverted = new float[channels][height][width];
+                JMatrix inverted = image.zerosLike();
         
                 for (int c = 0; c < channels; c++) {
                     for (int i = 0; i < height; i++) {
                         for (int j = 0; j < width; j++) {
-                            inverted[c][i][j] = 255 - image[c][i][j];
+                            inverted.set(0, c, i, j, 255 - image.get(0, c, i, j));
                         }
                     }
                 }
@@ -111,15 +113,11 @@ public class Transform {
         System.out.println(normBounds[0]);
         transforms.add(
             image -> {
-                int channels = image.length;
-                int numRotations = (int)(Math.random() * 3) + 1;
-                float[][][] rotatedImage = copy(image);
-                for (int c = 0; c < channels; c++) {
-                    for (int r = 0; r < numRotations; r++) {
-                        rotatedImage[c] = DataUtility.transpose(rotatedImage[c]);
-                    }
+                int numRotations = ThreadLocalRandom.current().nextInt(4);
+                for (int i = 0; i < numRotations; i++) {
+                    image = image.transpose4D();
                 }
-                return rotatedImage;
+                return image;
             }
         );
         return this;
@@ -130,22 +128,10 @@ public class Transform {
     public Transform randomFlip() {
         transforms.add(
             image -> {
-                if (Math.random() > 0.5) {
-                    int channels = image.length;
-                    int height = image[0].length;
-                    int width = image[0][0].length;
-                    float[][][] flipped = copy(image);
-                    for (int c = 0; c < channels; c++) {
-                        for (int i = 0; i < height; i++) {
-                            for (int j = 0; j < width; j++) {
-                                flipped[c][i][j] = image[c][i][width - 1 - j];
-                            }
-                        }
-                    }
-                    return flipped;
-                } else {
-                    return image;
+                if (ThreadLocalRandom.current().nextDouble() > 0.5) {
+                    image = image.transpose4D().transpose4D();
                 }
+                return image;
             }
         );
         return this;
@@ -158,9 +144,9 @@ public class Transform {
             image -> {
                 // Random value from -0.2 to 0.2
                 double brightness = Math.random() / 2.5 - 0.2;
-                return DataUtility.clip(
-                    DataUtility.add(image, brightness), 
-                    normBounds[0], normBounds[1]);
+                return image
+                    .add(brightness)
+                    .clip(normBounds[0], normBounds[1]);
             }
         );
         return this;
@@ -171,11 +157,11 @@ public class Transform {
      */
     public Transform resize(int height, int width) {
         transforms.add(image -> {
-            int channels = image.length;
-            int oldHeight = image[0].length;
-            int oldWidth = image[0][0].length;
+            int channels = image.channels();
+            int oldHeight = image.height();
+            int oldWidth = image.width();
             
-            float[][][] resized = new float[channels][height][width];
+            JMatrix resized = new JMatrix(1, channels, height, width);
     
             for (int c = 0; c < channels; c++) {
                 for (int i = 0; i < height; i++) {
@@ -185,7 +171,7 @@ public class Transform {
                         srcY = Math.min(srcY, oldHeight - 1);
                         srcX = Math.min(srcX, oldWidth - 1);
                         
-                        resized[c][i][j] = image[c][srcY][srcX];
+                        resized.set(1, c, i, j, image.get(1, c, srcY, srcX));
                     }
                 }
             }
@@ -194,18 +180,15 @@ public class Transform {
         });
         return this;
     }
-    private float[][][] copy(float[][][] arr) {
-        int channels = arr.length;
-        int height = arr[0].length;
-        int width = arr[0][0].length;
-        float[][][] copy = new float[channels][height][width];
-        for (int c = 0; c < channels; c++) {
-            for (int h = 0; h < height; h++) {
-                for (int w = 0; w < width; w++) {
-                    copy[c][h][w] = arr[c][h][w];
-                }
-            }
-        }
-        return copy;
+    
+    /**
+     * Define a custom Java Function to add it to this Transform.
+     * @param func a custom Java Function that accepts and returns a JMatrix.
+     * The input JMatrix represents an image in the shape (N,C,H,W). The batch dimension 
+     * (N) will be equal to 1.
+     */
+    public Transform customTransform(Function<JMatrix, JMatrix> func) {
+        transforms.add(func);
+        return this;
     }
 }

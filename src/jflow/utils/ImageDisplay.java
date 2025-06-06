@@ -6,16 +6,18 @@ import java.awt.Graphics;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 
+import jflow.data.JMatrix;
+
 class ImageDisplay extends JPanel{
 
     private JFrame frame;
-    private float[][][] image;
+    private JMatrix image;
     private int scaleFactor;
 
-    protected ImageDisplay(float[][][] image, int scaleFactor, String label) {
+    protected ImageDisplay(JMatrix image, int scaleFactor, String label) {
         this.image = image;
-        int height = image.length;
-        int width = image[0].length;
+        int height = image.height();
+        int width = image.width();
 
 
         // Since JFrame has a minimum visual width > 0
@@ -39,7 +41,7 @@ class ImageDisplay extends JPanel{
     public void paintComponent(Graphics g) {
         int channel1; int channel2; int channel3;
         // RGB
-        if (image[0][0].length == 3) {
+        if (image.channels() == 3) {
             channel1 = 0;
             channel2 = 1;
             channel3 = 2;
@@ -48,10 +50,14 @@ class ImageDisplay extends JPanel{
         else {
             channel1 = channel2 = channel3 = 0;
         }
-        for (int i = 0; i < image.length; i++) {
-            for (int j = 0; j < image[0].length; j++) {
-                g.setColor(new Color((int)image[i][j][channel1], 
-                    (int)image[i][j][channel2], (int)image[i][j][channel3]));
+        for (int i = 0; i < image.height(); i++) {
+            for (int j = 0; j < image.width(); j++) {
+                g.setColor(new Color(
+                    (int)image.get(0, channel1, i, j), 
+                    (int)image.get(0, channel2, i, j), 
+                    (int)image.get(0, channel3, i, j)
+                    )
+                );
                 g.fillRect(i * scaleFactor, j * scaleFactor, scaleFactor, scaleFactor);
             }
         }

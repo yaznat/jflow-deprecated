@@ -18,25 +18,10 @@ public class JPlot {
      * @param scaleFactor       The scale factor of the display.
      */
     public static void displayImage(Image image, int scaleFactor) {
-        float[][][] pixels = image.getPixels();
-        
-        // Convert to [size, size, channels]
-        float[][][] displayImage = new float[pixels[0].length]
-            [pixels[0][0].length][pixels.length];
-
-        for (int i = 0; i < pixels[0].length; i++) {
-            for (int j = 0; j < pixels[0][0].length; j++) {
-                // grayscale
-                displayImage[j][i][0] = pixels[0][i][j];
-                // RGB
-                if (pixels.length == 3) {
-                    displayImage[j][i][1] = pixels[1][i][j];
-                    displayImage[j][i][2] = pixels[2][i][j];
-                }
-            }
-        }
+        JMatrix pixels = image.getPixels();
         // Display the image
-        new ImageDisplay(displayImage, scaleFactor, String.valueOf(image.getLabel()));
+
+        new ImageDisplay(pixels, scaleFactor, String.valueOf(image.getLabel()));
     }
 
     /**
@@ -45,25 +30,7 @@ public class JPlot {
      * @param scaleFactor       The scale factor of the display.
      */
     public static void displayImage(JMatrix image, int scaleFactor, String title) {
-        int channels = image.channels();
-        int height = image.height();
-        int width = image.width();
-
-        // Convert to [size, size, channels]
-        float[][][] displayImage = new float[height][width][channels];
-
-        for (int i = 0; i < height; i++) {
-            for (int j = 0; j < width; j++) {
-                // grayscale
-                displayImage[j][i][0] = image.get(0, 0, i, j);
-                // RGB
-                if (channels == 3) {
-                    displayImage[j][i][1] = image.get(0, 1, i, j);
-                    displayImage[j][i][2] = image.get(0, 2, i, j);
-                }
-            }
-        }
         // Display the image
-        new ImageDisplay(displayImage, scaleFactor, title);
+        new ImageDisplay(image, scaleFactor, title);
     }
 }

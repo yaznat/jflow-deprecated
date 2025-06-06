@@ -58,7 +58,7 @@ public class Dataloader {
      */
     public void applyTransform(Transform transform) {
         for (Image image : images) {
-            for (Function<float[][][], float[][][]> func : transform.getTransforms()) {
+            for (Function<JMatrix, JMatrix> func : transform.getTransforms()) {
                 image.addTransform(func);
             }
         }
@@ -105,7 +105,7 @@ public class Dataloader {
         Transform transform = new Transform();
         transform.resize(resize[0], resize[1]);
 
-        Function<float[][][], float[][][]> resizeFunc = transform.getTransforms().get(0);
+        Function<JMatrix, JMatrix> resizeFunc = transform.getTransforms().get(0);
 
         for (int i = 0; i < numImages; i++) {
             if (files[i].getAbsolutePath().endsWith(".png") || 
@@ -204,8 +204,8 @@ public class Dataloader {
       * @param array               An array representing the image in the format (channels, height, width)
       * @param label               The class label of the image.
       */
-    public void addArrayAsImage(float[][][] array, int label) {
-        images.add(new Image(array, label));
+    public void addMatrixAsImage(JMatrix matrix, int label) {
+        images.add(new Image(matrix, label));
     }
     /**
       * Removes all images from the Dataloader.
@@ -337,13 +337,13 @@ public class Dataloader {
 
         int batchLength = batchSize * channels * height * width;
         int imageLength = channels * height * width;
-        float[] flattenedBatch = new float[batchLength];
+        JMatrix flattenedBatch = new JMatrix(batchSize, channels, height, width);
 
         IntStream.range(0, batchSize).parallel().forEach(i -> {
-            float[] image = batch.get(i).getFlat();
-            System.arraycopy(image, 0, flattenedBatch, i * imageLength, imageLength);
+            JMatrix image = batch.get(i).getData();
+            flattenedBatch.arrayCopyBatch(i, image);
         });
-        return new JMatrix(flattenedBatch, batchSize, channels, height, width);
+        return flattenedBatch;
     }
 
 
@@ -431,7 +431,7 @@ public class Dataloader {
         int numImages = arrayToUse.size();
         for (int i = 0; i < numImages; i++) {
             Image augmented = arrayToUse.get(i);
-            for  (Function<float[][][], float[][][]> 
+            for  (Function<JMatrix, JMatrix> 
                 function : augmentations.getTransforms()) {
                 
                 augmented.addTransform(function);
@@ -459,7 +459,7 @@ public class Dataloader {
 
         // Copy data into the JMatrix
         for (int i = 0; i < numImages; i++) {
-            float[] image = testImages.get(i).getFlat();
+            float[] image = testImages.get(i).getData().getMatrix();
             for (int j = 0; j < imageSize; j++) {
                 imageBatch.set(i * imageSize + j, image[j]);
             }
@@ -488,7 +488,7 @@ public class Dataloader {
 
         // Copy data into the JMatrix
         for (int i = 0; i < numImages; i++) {
-            float[] image = valImages.get(i).getFlat();
+            float[] image = valImages.get(i).getData().getMatrix();
             for (int j = 0; j < imageSize; j++) {
                 imageBatch.set(i * imageSize + j, image[j]);
             }
