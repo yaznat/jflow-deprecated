@@ -465,7 +465,7 @@ public class JMatrix {
      * @param widthIndex                The width index of the item to set.
      * @param value             The value to set, cast to a float.            
      */
-    public void set(int lengthIndex, int channelIndex, int widthIndex, int heightIndex, double value) {
+    public void set(int lengthIndex, int channelIndex, int heightIndex, int widthIndex, double value) {
         matrix[lengthIndex * channels * height * 
         width + channelIndex * height * width + 
         heightIndex * width + widthIndex] = (float)value;
