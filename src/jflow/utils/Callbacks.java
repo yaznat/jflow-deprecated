@@ -40,7 +40,7 @@ public class Callbacks {
      * @param outerIndex                The current index (1-based) of progress in the outer loop.
      * @param outerTotal                The total number of iterations in the outer loop.
      * @param innerLabel                A descriptive label for the inner training loop, e.g., "Batch" or "Step".
-     * @param innerIndex                The current index (1-based) of progress in the inner loop.
+     * @param innerIndex                The current index (0-based) of progress in the inner loop.
      * @param innerTotal                The total number of iterations in the inner loop.
      * @param elapsedTime               The elapsed time in nanoseconds since the start of the current outer loop iteration.
      *                                  Used to calculate and display an ETA.
@@ -67,7 +67,7 @@ public class Callbacks {
      * @param outerIndex                The current index (1-based) of progress in the outer loop.
      * @param outerTotal                The total number of iterations in the outer loop.
      * @param innerLabel                A descriptive label for the inner training loop, e.g., "Batch" or "Step".
-     * @param innerIndex                The current index (1-based) of progress in the inner loop.
+     * @param innerIndex                The current index (0-based) of progress in the inner loop.
      * @param innerTotal                The total number of iterations in the inner loop.
      * @param elapsedTime               The elapsed time in nanoseconds since the start of the current outer loop iteration.
      *                                  Used to calculate and display an ETA.
