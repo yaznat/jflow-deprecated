@@ -458,6 +458,15 @@ public class JMatrix {
     }
 
     /**
+     * Add to an item with 1D indexing.
+     * @param index             The 1D index to alter.
+     * @param value             The value to add to the existing item, cast to a float.            
+     */
+    public void addTo(int index, double value) {
+        matrix[index] += (float)value;
+    }
+
+    /**
      * Set an item with 4D indexing.
      * @param lengthIndex               The batch index of the item to set.
      * @param channelIndex              The channel index of the item to set.
@@ -469,6 +478,20 @@ public class JMatrix {
         matrix[lengthIndex * channels * height * 
         width + channelIndex * height * width + 
         heightIndex * width + widthIndex] = (float)value;
+    }
+
+    /**
+     * Add to an item with 4D indexing.
+     * @param lengthIndex               The batch index of the item to add to.
+     * @param channelIndex              The channel index of the item to add to.
+     * @param heightIndex               The height index of the item to add to.
+     * @param widthIndex                The width index of the item to add to.
+     * @param value             The value to add to the existing item, cast to a float.            
+     */
+    public void addTo(int lengthIndex, int channelIndex, int heightIndex, int widthIndex, double value) {
+        matrix[lengthIndex * channels * height * 
+        width + channelIndex * height * width + 
+        heightIndex * width + widthIndex] += (float)value;
     }
 
 // Statistics
