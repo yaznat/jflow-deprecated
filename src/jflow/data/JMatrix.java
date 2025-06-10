@@ -975,62 +975,89 @@ public class JMatrix {
         int newWidth = oldHeight;
 
         float[] rotated = new float[size()];
-        
-        // Use cache-friendly block size
-        final int BLOCK_SIZE = 64;
-        final int PARALLEL_THRESHOLD = 4096;
-        
-        // For small matrices, use sequential processing
-        if (oldHeight * oldWidth <= PARALLEL_THRESHOLD) {
-            transposeBlock2D(rotated, 0, 0, oldHeight, oldWidth, oldWidth, oldHeight);
-        } else {
-            // Process in blocks for better cache locality
-            int numBlocksH = (oldHeight + BLOCK_SIZE - 1) / BLOCK_SIZE;
-            int numBlocksW = (oldWidth + BLOCK_SIZE - 1) / BLOCK_SIZE;
-            
-            IntStream.range(0, numBlocksH * numBlocksW).parallel().forEach(blockIdx -> {
-                int blockRow = blockIdx / numBlocksW;
-                int blockCol = blockIdx % numBlocksW;
-                
-                int rowStart = blockRow * BLOCK_SIZE;
-                int rowEnd = Math.min(rowStart + BLOCK_SIZE, oldHeight);
-                int colStart = blockCol * BLOCK_SIZE;
-                int colEnd = Math.min(colStart + BLOCK_SIZE, oldWidth);
-                
-                transposeBlock2D(rotated, rowStart, colStart, rowEnd, colEnd, oldWidth, newWidth);
-            });
-        }
-        // float[] rotated = MetalTranspose.transpose2D(matrix, oldHeight, oldWidth, false);
+
+        IntStream.range(0, oldHeight).parallel().forEach(row -> {
+            for (int col = 0; col < oldWidth; col++) {
+                int oldIndex = row * oldWidth + col;
+                int newIndex = col * newWidth + row;
+                rotated[newIndex] = access(oldIndex);
+            }
+        });
+
+        // Assign all features to channels for simplicity
         return new JMatrix(rotated, newHeight, newWidth, 1, 1);
     }
 
     /**
-     * Process a block of the 2D transpose operation
+     * Rotate every height * width * channels item by 90 degrees for 3D use cases.
+     * @return A new JMatrix with the changes applied.
      */
-    private void transposeBlock2D(float[] rotated, int rowStart, int colStart,
-                            int rowEnd, int colEnd, int oldWidth, int newWidth) {
-    for (int row = rowStart; row < rowEnd; row++) {        
-        for (int col = colStart; col < colEnd; col++) {    
-            // Convert feature index back to position in N,C,H,W 
-            int n = row;  // batch index
-            int chw = col; // flattened feature index
-            
-
-            int oldIndex = n * (channels * height * width) + chw;
-            
-            int newIndex = col * newWidth + row;  
-            rotated[newIndex] = access(oldIndex);
-        }
+    public JMatrix transpose3D() {
+        int numBatches = length;     
+        int oldC = channels;         
+        int oldH = height;           
+        int oldW = width;           
+    
+        int newH = oldH * oldW; // Flatten spatial dimensions
+        int newW = oldC; // Channels become features
+        float[] transposed = new float[size()]; 
+    
+        int oldPerBatch = oldC * oldH * oldW;
+        int newPerBatch = newH * newW;
+    
+        IntStream.range(0, numBatches).parallel().forEach(batch -> {
+            for (int c = 0; c < oldC; c++) {
+                for (int h = 0; h < oldH; h++) {
+                    for (int w = 0; w < oldW; w++) {
+                        int hwIndex = h * oldW + w;
+                        int oldIndex = batch * oldPerBatch + c * oldH * oldW + h * oldW + w;
+                        int newIndex = batch * newPerBatch + hwIndex * oldC + c;
+                        transposed[newIndex] = access(oldIndex);
+                    }
+                }
+            }
+        });
+    
+        return new JMatrix(transposed, numBatches, newH, newW, 1);
     }
-}
 
     /**
-     * Transpose the matrix by rearranging dimension according to a particular order
+     * Rotate every height * width element by 90 degrees.
+     * @return A new JMatrix with the changes applied.
+     */
+    public JMatrix transpose4D() {
+        int newHeight = width;
+        int newWidth = height;
+        
+        float[] resultData = new float[size()];
+        
+        IntStream.range(0, length * channels).parallel().forEach(batchChannel -> {
+            int batch = batchChannel / channels;
+            int channel = batchChannel % channels;
+            
+            int oldOffset = batch * (channels * height * width) + channel * (height * width);
+            int newOffset = batch * (channels * newHeight * newWidth) + channel * (newHeight * newWidth);
+            
+            for (int h = 0; h < height; h++) {
+                for (int w = 0; w < width; w++) {
+                    int oldIndex = oldOffset + h * width + w;
+                    int newIndex = newOffset + w * newWidth + h; 
+                    resultData[newIndex] = matrix[oldIndex];
+                }
+            }
+        });
+        
+        return new JMatrix(resultData, length, channels, newHeight, newWidth);
+    }
+
+    /**
+     * Transpose the matrix by rearranging dimension according to a particular order.
      * @param axis1 The dimension to use as the first dimension (0=N, 1=C, 2=H, 3=W)
      * @param axis2 The dimension to use as the second dimension (0=N, 1=C, 2=H, 3=W)
      * @param axis3 The dimension to use as the third dimension (0=N, 1=C, 2=H, 3=W)
      * @param axis4 The dimension to use as the fourth dimension (0=N, 1=C, 2=H, 3=W)
      */
+    // NOTE: THIS FUNCTION IS PARTIALLY GENERATED BY CLAUDE.AI
     public JMatrix transpose(int axis1, int axis2, int axis3, int axis4) {
         // Check input values
         int[] axes = {axis1, axis2, axis3, axis4};
@@ -1098,6 +1125,7 @@ public class JMatrix {
     /**
      * Sequential transposition for small matrices
      */
+    // NOTE: THIS FUNCTION IS PARTIALLY GENERATED BY CLAUDE.AI
     private void transposeSequential(float[] transposed, int[] axes, int[] oldDims, int[] oldStrides, int[] newStrides) {
         int length = oldDims[0];
         int channels = oldDims[1];
@@ -1111,7 +1139,7 @@ public class JMatrix {
                         // Original coordinates
                         int[] coords = {n, c, h, w};
                         
-                        // Calculate original index directly without using array lookups in hot loop
+                        // Calculate original index
                         int originalIndex = n * oldStrides[0] + c * oldStrides[1] + 
                                         h * oldStrides[2] + w * oldStrides[3];
                         
@@ -1133,7 +1161,7 @@ public class JMatrix {
         }
     }
 
-
+    // NOTE: THIS FUNCTION IS PARTIALLY GENERATED BY CLAUDE.AI
     private void transposeBlock(float[] transposed, int[] axes, int[] oldDims, int[] oldStrides, int[] newStrides, 
                             int startIdx, int endIdx) {
         // Pre-calculated values for the innermost loop
@@ -1151,7 +1179,7 @@ public class JMatrix {
             int c = remaining / oldStrides[1];
             remaining %= oldStrides[1];  
             int h = remaining / oldStrides[2];
-            int w = remaining % oldStrides[2]; // This is correct - remaining mod width
+            int w = remaining % oldStrides[2];
             
             // Bounds check to prevent IndexOutOfBounds
             if (n >= maxN || c >= maxC || h >= maxH || w >= maxW) {
@@ -1178,70 +1206,6 @@ public class JMatrix {
             }
         }
     }
-
-    /**
-     * Rotate every height * width * channels item by 90 degrees for 3D use cases.
-     * @return A new JMatrix with the changes applied.
-     */
-    public JMatrix transpose3D() {
-        int numBatches = length;     
-        int oldC = channels;         
-        int oldH = height;           
-        int oldW = width;           
-    
-        int newH = oldH * oldW; // Flatten spatial dimensions
-        int newW = oldC; // Channels become features
-        float[] transposed = new float[size()]; 
-    
-        int oldPerBatch = oldC * oldH * oldW;
-        int newPerBatch = newH * newW;
-    
-        IntStream.range(0, numBatches).parallel().forEach(batch -> {
-            for (int c = 0; c < oldC; c++) {
-                for (int h = 0; h < oldH; h++) {
-                    for (int w = 0; w < oldW; w++) {
-                        int hwIndex = h * oldW + w;
-                        int oldIndex = batch * oldPerBatch + c * oldH * oldW + h * oldW + w;
-                        int newIndex = batch * newPerBatch + hwIndex * oldC + c;
-                        transposed[newIndex] = access(oldIndex);
-                    }
-                }
-            }
-        });
-    
-        return new JMatrix(transposed, numBatches, newH, newW, 1);
-    }
-
-    /**
-     * Rotate every height * width element by 90 degrees.
-     * @return A new JMatrix with the changes applied.
-     */
-    public JMatrix transpose4D() {
-        int newHeight = width;
-        int newWidth = height;
-        
-        float[] resultData = new float[size()];
-        
-        IntStream.range(0, length * channels).parallel().forEach(batchChannel -> {
-            int batch = batchChannel / channels;
-            int channel = batchChannel % channels;
-            
-            int oldOffset = batch * (channels * height * width) + channel * (height * width);
-            int newOffset = batch * (channels * newHeight * newWidth) + channel * (newHeight * newWidth);
-            
-            for (int h = 0; h < height; h++) {
-                for (int w = 0; w < width; w++) {
-                    int oldIndex = oldOffset + h * width + w;
-                    int newIndex = newOffset + w * newWidth + h; 
-                    resultData[newIndex] = matrix[oldIndex];
-                }
-            }
-        });
-        
-        return new JMatrix(resultData, length, channels, newHeight, newWidth);
-    }
-
-    
 
     /**
      * Compare the shape of two JMatrixes.
