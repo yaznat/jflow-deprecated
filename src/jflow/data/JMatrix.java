@@ -346,10 +346,10 @@ public class JMatrix {
      * Get a channels * height * width element.
      * @param lengthIndex The index along the batch dimension.
      */
-    public double[] getImage(int lengthIndex) {
+    public float[] getImage(int lengthIndex) {
         int sliceSize = channels * height * width;
         int startIdx = lengthIndex * sliceSize;  
-        double[] slice = new double[sliceSize];
+        float[] slice = new float[sliceSize];
         System.arraycopy(matrix, startIdx, slice, 0, sliceSize);
         return slice;
     }
@@ -401,7 +401,7 @@ public class JMatrix {
      * @throws IllegalArgumentException If the number of values is
      * unequal to the height * width of the JMatrix.
      */
-    public void set(int lengthIndex, int channelIndex, double[] values) {
+    public void set(int lengthIndex, int channelIndex, float[] values) {
         int sliceSize = height * width;
         if (values.length != sliceSize) {
             throw new IllegalArgumentException("Invalid slice size. Expected " + sliceSize + " values.");
