@@ -2,7 +2,7 @@
 
 **JFlow** is a memory-efficient deep learning library written in Java, designed for both educational use and real-world machine learning applications. It provides low-level control over model training and supports limited hardware.  
 
-![Alt text](readme-images/Callback-Example.png)  
+![Training GIF](readme-images/Training-Example.gif)  
 
 ### Strengths  
 
@@ -20,7 +20,7 @@
 - Clean, Keras-similar UI for model training.  
 - Implement custom training steps easily.  
 - Debug mode for inspecting gradients:  
-![Alt text](readme-images/Debug-Example.png)  
+![Debug Example](readme-images/Debug-Example.png)  
 
 ### Key Features  
 
@@ -32,7 +32,7 @@
 - Normalize and augment images with built-in functions.  
 
 #### Sequential Model  
-![Alt text](readme-images/Summary-Example.png)  
+![Model Summary](readme-images/Summary-Example.png)  
 - Build models with a simple UI.  
     - High-level functions: train, predict.  
     - Low-level functions: forward(data), backward(data).  
