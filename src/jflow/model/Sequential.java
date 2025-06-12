@@ -77,7 +77,7 @@ public class Sequential{
 
         if (!layer.isInternal()) {
             // Link non-internal layers
-            if (layers.isEmpty() || onlyFunctionalLayers()) {
+            if (layers.isEmpty()) {
                 // First layer in the model
                 if (inputShape != null) {
                     layer.setInputShape(inputShape);
@@ -111,13 +111,9 @@ public class Sequential{
         // Build the layer after setting connections
         layer.build(layerCounts.get(name));
         
-        // Special handling for FunctionalLayer
         if (layer instanceof FunctionalLayer) {
             processFunctionalLayer((FunctionalLayer) layer);
         }
-
-      
-        
         return this;
     }
 
@@ -138,7 +134,7 @@ public class Sequential{
         Layer[] internalLayers = functionalLayer.getLayers();
         
         if (internalLayers != null && internalLayers.length > 0) {
-            // Find the appropriate previous layer to connect the first internal layer
+            // Find the appropriate previous layer to connect to the first internal layer
             Layer previousLayerForConnection = findPreviousLayerForInternalLayer(functionalLayer);
             
             if (previousLayerForConnection != null) {
@@ -156,6 +152,10 @@ public class Sequential{
             for (Layer internalLayer : internalLayers) {
                 String internalName = internalLayer.getName();
                 layerCounts.put(internalName, layerCounts.getOrDefault(internalName, 0) + 1);
+                
+                // Set the enclosing layer reference
+                internalLayer.setEnclosingLayer(functionalLayer);
+                
                 internalLayer.build(layerCounts.get(internalName));
                 layers.add(internalLayer);
                 
@@ -166,6 +166,7 @@ public class Sequential{
             }
         }
     }
+    
     private Layer findPreviousLayerForInternalLayer(FunctionalLayer functionalLayer) {
         // Find functional layer's index
         int functionalLayerIndex = -1;
@@ -180,43 +181,39 @@ public class Sequential{
             return null; // Functional layer not found in layers list
         }
         
-        // Find the previous layer that the first internal layer should connect to
-        // This should be the last non-internal layer before this functional layer
-        // or a layer with a different enclosing functional layer
+        // Get the enclosing layer of the current functional layer
+        Layer currentEnclosingLayer = functionalLayer.getEnclosingLayer();
         
+        // Look backwards for a layer at the same nesting level
         for (int i = functionalLayerIndex - 1; i >= 0; i--) {
             Layer candidate = layers.get(i);
             
-            // If the candidate is not internal, it's a valid connection
-            if (!candidate.isInternal()) {
+            // Check if this candidate is at the same nesting level
+            if (isSameNestingLevel(candidate, functionalLayer, currentEnclosingLayer)) {
                 return candidate;
-            }
-            
-            // If the candidate has a different enclosing layer than our functional layer,
-            // it could be a valid connection
-            Layer candidateEnclosing = candidate.getEnclosingLayer();
-            if (candidateEnclosing != null && !candidateEnclosing.equals(functionalLayer)) {
-                // We need to check if the candidate's enclosing layer is not contained within our functional layer
-                // This is to prevent connecting to layers in deeper nested functional layers
-                boolean isValid = true;
-                Layer checkLayer = candidateEnclosing;
-                
-                // Traverse up the enclosing chain to ensure we're not connecting to a deeper nested layer
-                while (checkLayer != null) {
-                    if (checkLayer.equals(functionalLayer)) {
-                        isValid = false;
-                        break;
-                    }
-                    checkLayer = checkLayer.getEnclosingLayer();
-                }
-                
-                if (isValid) {
-                    return candidate;
-                }
             }
         }
         
         return null;
+    }
+    
+    /**
+     * Determines if two layers are at the same nesting level within the functional layer hierarchy
+     */
+    private boolean isSameNestingLevel(Layer candidate, Layer currentFunctionalLayer, Layer currentEnclosingLayer) {
+        Layer candidateEnclosingLayer = candidate.getEnclosingLayer();
+        
+        // If both have the same enclosing layer, they're at the same level
+        if (candidateEnclosingLayer == currentEnclosingLayer) {
+            return true;
+        }
+        
+        // Handle the case where one or both enclosing layers are null
+        if (candidateEnclosingLayer == null && currentEnclosingLayer == null) {
+            return true;
+        }
+        
+        return false;
     }
 
     /**
@@ -373,7 +370,7 @@ public class Sequential{
                     for (int i = 0; i < batchSize; i++) {
                         yBatchf[i] = (float)yBatch[i];
                     }
-                    yTrue = new JMatrix(yBatchf, batchSize, 1, 1, 1);
+                    yTrue = JMatrix.wrap(yBatchf, batchSize, 1, 1, 1);
                     
                 } else {
                     yTrue = oneHotEncode(yBatch, classes, true);
@@ -575,8 +572,9 @@ public class Sequential{
      * When enabled, prints statistical data from each layer.
      * @param enabled               Set debug mode to on or off.
      */
-    public void setDebugMode(boolean enabled) {
+    public Sequential setDebug(boolean enabled) {
         debugMode = enabled;
+        return this;
     }
     
     // One hot encode labels
