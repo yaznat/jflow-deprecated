@@ -36,7 +36,7 @@ public class MaxPool2D extends ShapeAlteringLayer {
         outputHeight = (imageHeight - poolSize) / stride + 1;
         outputWidth = (imageWidth - poolSize) / stride + 1;
  
-        JMatrix output = new JMatrix(numImages, channels, outputHeight, outputWidth);
+        JMatrix output = JMatrix.zeros(numImages, channels, outputHeight, outputWidth);
 
 
         // Perform max pooling

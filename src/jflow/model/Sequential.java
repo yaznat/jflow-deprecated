@@ -582,7 +582,7 @@ public class Sequential{
     // One hot encode labels
     private JMatrix oneHotEncode(int[] labels, int numClasses,
                                  boolean transpose) throws IllegalArgumentException {
-        JMatrix oneHot = new JMatrix(labels.length, numClasses, 1, 1);
+        JMatrix oneHot = JMatrix.zeros(labels.length, numClasses, 1, 1);
         float[] oneHotMatrix = oneHot.getMatrix();
         for (int x = 0; x < labels.length; x++) {
             oneHotMatrix[x * numClasses + labels[x]] = 1.0f;
@@ -852,17 +852,21 @@ public class Sequential{
         if (isFlat(first)) {
             // Run a flat batch of 1 through the model
             if (first instanceof Embedding) {
-                JMatrix empty = new JMatrix(1, 1, 1, 1);
+                JMatrix empty = JMatrix.zeros(1, 1, 1, 1);
                 forward(empty, false);
             } else {
-                // Dense input shape is fixed
-                JMatrix empty = new JMatrix(1, first.getInputShape()[0], 1, 1);
+                // Dense
+                JMatrix empty = JMatrix.zeros(1, first.getInputShape()[0], 1, 1);
                 forward(empty, false);
             }
         } else {
             // Run a 4D batch of 1 through the model
-            JMatrix empty = new JMatrix(1, first.getInputShape()[0], 
-                first.getInputShape()[1], first.getInputShape()[2]);
+            JMatrix empty = JMatrix.zeros(
+                1, 
+                first.getInputShape()[0], 
+                first.getInputShape()[1], 
+                first.getInputShape()[2]
+            );
             forward(empty, false);
         }
         // Count the total number of layers that aren't FunctionalLayers

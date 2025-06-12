@@ -161,7 +161,7 @@ public class Transform {
             int oldHeight = image.height();
             int oldWidth = image.width();
             
-            JMatrix resized = new JMatrix(1, channels, height, width);
+            JMatrix resized = JMatrix.zeros(1, channels, height, width);
     
             for (int c = 0; c < channels; c++) {
                 for (int i = 0; i < height; i++) {

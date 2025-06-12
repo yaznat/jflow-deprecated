@@ -37,19 +37,21 @@ public class LayerNorm extends TrainableLayer {
         // N = batch size
         // C = sequence length
         // H = embedding dimension (normalize across this)
-        // W = 1 (typically)
+        // W = 1
         embedDim = prevShape[2];  // H dimension
         
         setNumTrainableParameters(2 * embedDim);
 
-        // Initialize gamma to ones and beta to zeros as in GPT-2
-        gamma = new JMatrix(embedDim, 1, 1, 1, "gamma").fill(1.0);
-        beta = new JMatrix(embedDim, 1, 1, 1, "beta"); // Defaults to zeros
+        // Initialize gamma to ones and beta to zeros
+        gamma = JMatrix.ones(embedDim, 1, 1, 1).setName("gamma");
+        beta = JMatrix.zeros(embedDim, 1, 1, 1).setName("beta");
 
         // Initialize gradients as zeros
         dGamma = gamma.zerosLike().setName("dGamma");
         dBeta = beta.zerosLike().setName("dBeta");
     }
+
+
 
     @Override
     public JMatrix forward(JMatrix input, boolean training) {
@@ -105,7 +107,6 @@ public class LayerNorm extends TrainableLayer {
                 output.set(batchIdx, seqIdx, e, 0, result);
             }
         });
-
         return trackOutput(output, training);
     }
 

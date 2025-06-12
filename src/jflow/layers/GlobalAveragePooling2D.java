@@ -24,7 +24,7 @@ public class GlobalAveragePooling2D extends ShapeAlteringLayer{
         height = input.height();
         width = input.width();
         int imageDim = height * width;
-        JMatrix averaged = new JMatrix(batchSize, channels, 1, 1);
+        JMatrix averaged = JMatrix.zeros(batchSize, channels, 1, 1);
         
         // For each batch item and channel
         IntStream.range(0, batchSize).parallel().forEach(n -> {
@@ -46,7 +46,7 @@ public class GlobalAveragePooling2D extends ShapeAlteringLayer{
     @Override
     public JMatrix backward(JMatrix input) {
         int imageDim = height * width;
-        JMatrix expanded = new JMatrix(batchSize, channels, height, width);
+        JMatrix expanded = JMatrix.zeros(batchSize, channels, height, width);
         
         // For each batch item and channel
         IntStream.range(0, batchSize).parallel().forEach(n -> {

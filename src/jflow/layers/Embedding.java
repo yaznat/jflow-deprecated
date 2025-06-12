@@ -19,8 +19,12 @@ public class Embedding extends TrainableLayer {
         this.vocabSize = vocabSize;
         this.embedDim = embedDim;
 
-        this.embeddings = JMatrix.randn(vocabSize, embedDim, 1, 1).multiply(0.02).setName("embedding"); // standard scale factor
-        this.gradEmbeddings = new JMatrix(vocabSize, embedDim, 1, 1).setName("dEmbedding");
+        this.embeddings = JMatrix
+            .randn(vocabSize, embedDim, 1, 1)
+            .multiply(0.02) // standard scale factor
+            .setName("embedding"); 
+        this.gradEmbeddings = JMatrix.zeros(vocabSize, embedDim, 1, 1).setName("dEmbedding");
+        System.out.println("Embedding weights mean: " + embeddings.mean());
     }
 
     public Embedding(int vocabSize, int embedDim, int[] inputShape) {
@@ -43,7 +47,7 @@ public class Embedding extends TrainableLayer {
         int batch = tokenIDs.shape()[0];
         int seqLen = tokenIDs.shape()[1];
 
-        JMatrix output = new JMatrix(batch, seqLen, embedDim, 1);
+        JMatrix output = JMatrix.zeros(batch, seqLen, embedDim, 1);
 
         IntStream.range(0, batch).parallel().forEach(b -> {
             for (int t = 0; t < seqLen; t++) {

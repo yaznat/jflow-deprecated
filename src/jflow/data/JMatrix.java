@@ -32,40 +32,9 @@ public class JMatrix {
             null, true);
     
 
-    /**
-     * Initialize a new JMatrix with default values of zero.
-     * @param length                The batch dimension.
-     * @param channels              The channel dimension.
-     * @param height                The height dimension.
-     * @param width                 The width dimension.
-     */
-    public JMatrix(int length, int channels, int height, int width) {
-        this(new float[length * channels * height * width], 
-            length, channels, height, width);
-    }
 
-     /**
-     * Initialize a new JMatrix with default values of zero.
-     * @param shape                The desired shape (N, channels, height, width)
-     * @throws IllegalArgumentException if the length of shape is not four.
-     */
-    public JMatrix(int[] shape) {
-        this(shape[0], shape[1], shape[2], shape[3]);
-
-        if (shape.length != 4) {
-            throw new IllegalArgumentException("Invalid shape. Only length of 4 is permitted.");
-        }
-    }
-
-    /**
-     * Wrap an array in a new JMatrix.
-     * @param length                The batch dimension.
-     * @param channels              The channel dimension.
-     * @param height                The height dimension.
-     * @param width                 The width dimension.
-     */
-    public JMatrix(float[] matrix, int length, int channels, int height, int width) {
-        // all constructors point to this one
+    // default constructor
+    private JMatrix(float[] matrix, int length, int channels, int height, int width) {
         this.matrix = matrix;
         this.length = length;
         this.channels = channels;
@@ -78,55 +47,92 @@ public class JMatrix {
         } 
     }
 
+    private JMatrix(int length, int channels, int height, int width) {
+        this(new float[length * channels * height * width], 
+            length, channels, height, width);
+    }
+
     /**
      * Initialize a new JMatrix with default values of zero.
      * @param length                The batch dimension.
      * @param channels              The channel dimension.
      * @param height                The height dimension.
      * @param width                 The width dimension.
-     * @param name                  The name to assign to this JMatrix.
      */
-    public JMatrix(int length, int channels, int height, int width, String name) {
-        this(length, channels, height, width);
-        this.name = name;
+    public static JMatrix zeros(int length, int channels, int height, int width) {
+        return new JMatrix(length, channels, height, width);
     }
 
-     /**
+    /**
      * Initialize a new JMatrix with default values of zero.
-     * @param shape                The desired shape (N, channels, height, width)
-     * @param name                  The name to assign to this JMatrix.
-     * 
+     * @param shape                The desired shape (N, channels, height, width).
      * @throws IllegalArgumentException if the length of shape is not four.
      */
-    public JMatrix(int[] shape, String name) {
+    public static JMatrix zeros(int[] shape) {
         if (shape.length != 4) {
-            throw new IllegalArgumentException("Invalid shape. Only 4 is permitted.");
+            throw new IllegalArgumentException("Invalid shape. Only length 4 is permitted.");
         }
+        return new JMatrix(shape[0], shape[1], shape[2], shape[3]);
+    }
 
-        this.length = shape[0];
-        this.channels = shape[1];
-        this.height = shape[2];
-        this.width = shape[3];
-        this.name = name;
+    /**
+     * Initialize a new JMatrix with default values of one.
+     * @param length                The batch dimension.
+     * @param channels              The channel dimension.
+     * @param height                The height dimension.
+     * @param width                 The width dimension.
+     */
+    public static JMatrix ones(int length, int channels, int height, int width) {
+        return new JMatrix(length, channels, height, width).fill(1.0);
+    }
 
-        matrix = new float[length * channels * height * width];
+    /**
+     * Initialize a new JMatrix with default values of one.
+     * @param shape                The desired shape (N, channels, height, width).
+     * @throws IllegalArgumentException if the length of shape is not four.
+     */
+    public static JMatrix ones(int[] shape) {
+        if (shape.length != 4) {
+            throw new IllegalArgumentException("Invalid shape. Only length 4 is permitted.");
+        }
+        return new JMatrix(shape[0], shape[1], shape[2], shape[3]).fill(1.0);
     }
 
     /**
      * Wrap an array in a new JMatrix.
+     * @param values                The values to wrap in this JMatrix.
      * @param length                The batch dimension.
      * @param channels              The channel dimension.
      * @param height                The height dimension.
      * @param width                 The width dimension.
-     * @param name                  The name to assign to this JMatrix.
+     * @throws IllegalArgumentException if the dimensional information doesn't correspond to the length of values.
      */
-    public JMatrix(float[] matrix, int length, int channels, int height, int width, String name) {
-        this.matrix = matrix;
-        this.length = length;
-        this.channels = channels;
-        this.height = height;
-        this.width = width;
-        this.name = name;
+    public static JMatrix wrap(float[] values, int length, int channels, int height, int width) {
+        int reportedLength = length * channels * height * width;
+        if (values.length != reportedLength) {
+            throw new IllegalArgumentException(
+                String.format(
+                    "Invalid dimensional information." + 
+                    "Length of values: %d. Reported length: %d",
+                    values.length, reportedLength
+                )
+            );
+        }
+        return new JMatrix(values, length, channels, height, width);
+    }
+
+    /**
+     * Wrap an array in a new JMatrix.
+     * @param values                The values to wrap in this JMatrix.
+     * @param shape                 The desired shape (N, channels, height, width).
+     * @throws IllegalArgumentException if the length of shape is not four, 
+     * or if the dimensional information doesn't correspond to the length of values.
+     */
+    public static JMatrix wrap(float[] values, int[] shape) {
+        if (shape.length != 4) {
+            throw new IllegalArgumentException("Invalid shape. Only length 4 is permitted.");
+        }
+        return wrap(values, shape[0], shape[1], shape[2], shape[3]);
     }
 
     protected float access(int index) {
@@ -147,7 +153,7 @@ public class JMatrix {
      */
     public JMatrix setName(String name) {
         this.name = name;
-        return this; // For chaining
+        return this;
     }
 
     /**
@@ -340,7 +346,7 @@ public class JMatrix {
             result[i] = matrix[i + startIdx];
         });
 
-        return new JMatrix(result, length, 1, 1, 1);
+        return JMatrix.wrap(result, length, 1, 1, 1);
     }
     /**
      * Get a channels * height * width element.
@@ -364,7 +370,7 @@ public class JMatrix {
         int startIdx = lengthIndex * sliceSize;  
         float[] slice = new float[sliceSize];
         System.arraycopy(matrix, startIdx, slice, 0, sliceSize);
-        return new JMatrix(slice, 1, channels, height, width);
+        return JMatrix.wrap(slice, 1, channels, height, width);
     }
 
     /**
@@ -390,7 +396,7 @@ public class JMatrix {
         int startIdx = lengthIndex * channels * sliceSize + channelIndex * sliceSize;
         float[] slice = new float[sliceSize];
         System.arraycopy(matrix, startIdx, slice, 0, sliceSize);
-        return new JMatrix(slice, 1, 1, height, width);
+        return JMatrix.wrap(slice, 1, 1, height, width);
     }
 
     /**
@@ -417,8 +423,7 @@ public class JMatrix {
      * @param newChannels               The new channel dimension.
      * @param newHeight                 The new height dimension.
      * @param newWidth                  The new width dimension.
-     * @throws IllegalArgumentException If the total size of the reshape 
-     * is unequal to that of the original.
+     * @throws IllegalArgumentException if the provided dimensions don't match the length of the matrix.
      * @return                          A new JMatrix with the changes applied.
      */
     public JMatrix reshape(int newLength, int newChannels, int newHeight, int newWidth) {
@@ -431,15 +436,15 @@ public class JMatrix {
                 + numItems + " Reshape: " + newNumItems);
         }
 
-        return new JMatrix(matrix, newLength, newChannels, newHeight, newWidth);
+        return JMatrix.wrap(matrix, newLength, newChannels, newHeight, newWidth);
     }
 
      /**
      * Alter the dimensional information stored in the JMatrix.
-     * @param newLength                 The new shape;
-     * @throws IllegalArgumentException If the total size of the reshape 
-     * is unequal to that of the original, or if shape.length != 4.
+     * @param newLength                 The new shape
      * @return                          A new JMatrix with the changes applied.
+     * @throws IllegalArgumentException If the length of shape is not 4,
+     * or the provided dimensions don't match the length of the matrix.
      */
     public JMatrix reshape(int[] shape) {
         if (shape.length != 4) {
@@ -579,6 +584,20 @@ public class JMatrix {
         }
         return mean / size;
     }
+
+    /**
+     * The mean of the absolute value of all items in the JMatrix.
+     */
+    public double absMean() {
+        double mean = 0;
+
+        int size = size();
+        for (int i = 0; i < size; i++) {
+            mean += Math.abs(access(i));
+        
+        }
+        return mean / size;
+    }
     /**
      * The sum of all values in the JMatrix.
      */
@@ -604,7 +623,7 @@ public class JMatrix {
         
         // Create a new matrix with the summed dimension set to 1
         shape[axis] = 1;
-        JMatrix result = new JMatrix(shape[0], shape[1], shape[2], shape[3]);
+        JMatrix result = JMatrix.zeros(shape[0], shape[1], shape[2], shape[3]);
         
         // Perform the sum based on the specified axis
         switch (axis) {
@@ -776,7 +795,7 @@ public class JMatrix {
             throw new RuntimeException("Error in JMatrix.Softmax(axis = " + axis + ")", e);
         }
         
-        return new JMatrix(result, length, channels, height, width);
+        return JMatrix.wrap(result, length, channels, height, width);
     }
     /**
      * Perform log softmax along a given axis. Avoids overflow and underflow.
@@ -831,7 +850,7 @@ public class JMatrix {
         } catch (Exception e) {
             throw new RuntimeException("Error in JMatrix.LogSoftmax(axis = " + axis + ")", e);
         }
-        return new JMatrix(result, length, channels, height, width);
+        return JMatrix.wrap(result, length, channels, height, width);
     }
 
     // NOTE: THIS METHOD IS ADAPTED FROM CODE GENERATED BY CLAUDE.AI
@@ -874,21 +893,22 @@ public class JMatrix {
      * @param vocabSize The size of the vocabulary (number of possible token values)
      * @return A new JMatrix with one-hot encoding
      */
-    public static JMatrix oneHot(JMatrix indices, int vocabSize) {
+    public static JMatrix oneHot(JMatrix indices, int numLabels, float smoothing) {
         int batchSize = indices.shape()[0];
         int seqLen = indices.shape()[1];
         
-        JMatrix oneHotMatrix = new JMatrix(batchSize, seqLen, vocabSize, 1);
+        float smoothValue = smoothing / numLabels;
+        JMatrix oneHotMatrix = JMatrix.zeros(batchSize, seqLen, numLabels, 1);
+
+        oneHotMatrix.fill(smoothing);
         
         // Fill in the one-hot encoded values
         for (int batch = 0; batch < batchSize; batch++) {
             for (int seq = 0; seq < seqLen; seq++) {
-                // Get the token index at this position
                 int tokenIndex = (int)indices.get(batch, seq, 0, 0);
                 
-                // Set the corresponding position to 1.0 if the token index is valid
-                if (tokenIndex >= 0 && tokenIndex < vocabSize) {
-                    oneHotMatrix.set(batch, seq, tokenIndex, 0, 1.0);
+                if (tokenIndex >= 0 && tokenIndex < numLabels) {
+                    oneHotMatrix.set(batch, seq, tokenIndex, 0, 1.0f - smoothing + smoothValue);
                 }
             }
         }
@@ -915,7 +935,7 @@ public class JMatrix {
             noise[i] = (float)ThreadLocalRandom.current().nextDouble();
         });
 
-        return new JMatrix(noise, length, channels, height, width);
+        return JMatrix.wrap(noise, length, channels, height, width);
     }
 
     /**
@@ -931,7 +951,7 @@ public class JMatrix {
     public static JMatrix positionIDs(JMatrix tokenIDs) {
         int batch = tokenIDs.shape()[0];
         int seqLen = tokenIDs.shape()[1];
-        JMatrix positions = new JMatrix(batch, seqLen, 1, 1);
+        JMatrix positions = JMatrix.zeros(batch, seqLen, 1, 1);
     
         for (int b = 0; b < batch; b++) {
             for (int t = 0; t < seqLen; t++) {
@@ -1008,7 +1028,7 @@ public class JMatrix {
         });
 
         // Assign all features to channels for simplicity
-        return new JMatrix(rotated, newHeight, newWidth, 1, 1);
+        return JMatrix.wrap(rotated, newHeight, newWidth, 1, 1);
     }
 
     /**
@@ -1041,7 +1061,7 @@ public class JMatrix {
             }
         });
     
-        return new JMatrix(transposed, numBatches, newH, newW, 1);
+        return JMatrix.wrap(transposed, numBatches, newH, newW, 1);
     }
 
     /**
@@ -1070,7 +1090,7 @@ public class JMatrix {
             }
         });
         
-        return new JMatrix(resultData, length, channels, newHeight, newWidth);
+        return JMatrix.wrap(resultData, length, channels, newHeight, newWidth);
     }
 
     /**
@@ -1142,7 +1162,7 @@ public class JMatrix {
                     });
         }
         
-        return new JMatrix(transposed, newLength, newChannels, newHeight, newWidth);
+        return JMatrix.wrap(transposed, newLength, newChannels, newHeight, newWidth);
     }
 
     /**
@@ -1244,13 +1264,17 @@ public class JMatrix {
      * Returns an exact copy of this JMatrix.
      */
     public JMatrix copy() {
-        return new JMatrix(matrix.clone(), length, channels, height, width);
+        JMatrix copy = JMatrix.wrap(matrix.clone(), length, channels, height, width);
+        if (name != null) {
+            copy.setName(name);
+        }
+        return copy;
     }
     /**
      * Returns a new empty JMatrix with the same dimensions as this JMatrix.
      */
     public JMatrix zerosLike() {
-        return new JMatrix(new float[size()], length, channels, height, width);
+        return JMatrix.zeros(length, channels, height, width);
     }
 
     /**
@@ -1294,7 +1318,7 @@ public class JMatrix {
         int m = length;
         int n = secondMatrix.channels() * secondMatrix.height() * secondMatrix.width();
         int k = channels * height * width;
-        
+
         if (k != secondMatrix.length()) {
             throw new IllegalArgumentException(
                 "Matrix multiplication not possible for " +
@@ -1315,7 +1339,7 @@ public class JMatrix {
         float[] result = OptimizedMatmul.matmul(matrixA, matrixB, m, n, k, scale, 
             BLOCK_SIZE_M, BLOCK_SIZE_N, BLOCK_SIZE_K, THREAD_POOL);
         
-        return new JMatrix(result, m, secondMatrix.channels(), secondMatrix.height(), secondMatrix.width());
+        return JMatrix.wrap(result, m, secondMatrix.channels(), secondMatrix.height(), secondMatrix.width());
     }
     
     /**
@@ -1356,7 +1380,7 @@ public class JMatrix {
             }
         });
         
-        return new JMatrix(result, m, secondMatrix.channels(), secondMatrix.height(), secondMatrix.width());
+        return JMatrix.wrap(result, m, secondMatrix.channels(), secondMatrix.height(), secondMatrix.width());
     }
 
     /**
@@ -1389,7 +1413,7 @@ public class JMatrix {
         float[] result = OptimizedMatmul.batchMatmul(matrix, secondMatrix.getMatrix(), length, 
             inputChannels, outFlatSpatialDim, outputChannels, scale, BLOCK_SIZE_M, BLOCK_SIZE_N, BLOCK_SIZE_K, THREAD_POOL);
 
-        return new JMatrix(result, batchSize, channels, outFlatSpatialDim / secondMatrix.width(), secondMatrix.width());
+        return JMatrix.wrap(result, batchSize, channels, outFlatSpatialDim / secondMatrix.width(), secondMatrix.width());
     }
 
     /**
@@ -1404,7 +1428,7 @@ public class JMatrix {
             result[i] = (float)(1.0 / access(i));
         });
 
-        return new JMatrix(result, length, channels, height, width);
+        return JMatrix.wrap(result, length, channels, height, width);
     }
 
     /**
@@ -1419,7 +1443,7 @@ public class JMatrix {
             result[i] = (float)(Math.sqrt(access(i)));
         });
 
-        return new JMatrix(result, length, channels, height, width);
+        return JMatrix.wrap(result, length, channels, height, width);
     }
  
     /**
@@ -1437,7 +1461,7 @@ public class JMatrix {
             IntStream.range(0, size).parallel().forEach(i -> {
                 result[i] = access(i) - secondMatrix.access(i);
             });
-            return new JMatrix(result, length, channels, height, width);
+            return JMatrix.wrap(result, length, channels, height, width);
         }
 
         // Channel-wise broadcasting: (1, C, 1, 1) over (N, C, H, W)
@@ -1457,7 +1481,7 @@ public class JMatrix {
                 }
             });
 
-            return new JMatrix(result, length, channels, height, width);
+            return JMatrix.wrap(result, length, channels, height, width);
         }
 
         // If matrices are not broadcastable
@@ -1524,7 +1548,7 @@ public class JMatrix {
             IntStream.range(0, size).parallel().forEach(i -> {
                 result[i] = access(i) + secondMatrix.access(i);
             });
-            return new JMatrix(result, length, channels, height, width);
+            return JMatrix.wrap(result, length, channels, height, width);
         }
 
         // Channel-wise broadcasting: (1, C, 1, 1) over (N, C, H, W)
@@ -1544,7 +1568,7 @@ public class JMatrix {
                 }
             });
 
-            return new JMatrix(result, length, channels, height, width);
+            return JMatrix.wrap(result, length, channels, height, width);
         }
 
         // If matrices are not broadcastable
@@ -1608,7 +1632,7 @@ public class JMatrix {
             IntStream.range(0, size).parallel().forEach(i -> {
                 result[i] = access(i) * secondMatrix.access(i);
             });
-            return new JMatrix(result, length, channels, height, width);
+            return JMatrix.wrap(result, length, channels, height, width);
         }
         
         // Channel-wise broadcasting: (1, C, 1, 1) over (N, C, H, W)
@@ -1625,7 +1649,7 @@ public class JMatrix {
                     }
                 }
             });
-            return new JMatrix(result, length, channels, height, width);
+            return JMatrix.wrap(result, length, channels, height, width);
         }
         
         // Sample-channel-wise broadcasting: (N, C, 1, 1) over (N, C, H, W)
@@ -1644,7 +1668,7 @@ public class JMatrix {
                     }
                 }
             });
-            return new JMatrix(result, length, channels, height, width);
+            return JMatrix.wrap(result, length, channels, height, width);
         }
         
         // If matrices are not broadcastable
@@ -1710,7 +1734,7 @@ public class JMatrix {
             IntStream.range(0, size).parallel().forEach(i -> {
                 result[i] = access(i) / secondMatrix.access(i);
             });
-            return new JMatrix(result, length, channels, height, width);
+            return JMatrix.wrap(result, length, channels, height, width);
         }
 
         // Channel-wise broadcasting: (1, C, 1, 1) over (N, C, H, W)
@@ -1730,7 +1754,7 @@ public class JMatrix {
                 }
             });
 
-            return new JMatrix(result, length, channels, height, width);
+            return JMatrix.wrap(result, length, channels, height, width);
         }
 
         // If matrices are not broadcastable
@@ -1796,7 +1820,7 @@ public class JMatrix {
             result[i] = access(i) - fScalar;
         });
 
-        return new JMatrix(result, length, channels, height, width);
+        return JMatrix.wrap(result, length, channels, height, width);
     }
 
     /**
@@ -1830,7 +1854,7 @@ public class JMatrix {
             result[i] = access(i) + fScalar;
         });
 
-        return new JMatrix(result, length, channels, height, width);
+        return JMatrix.wrap(result, length, channels, height, width);
     }
 
     /**
@@ -1863,7 +1887,7 @@ public class JMatrix {
             result[i] = access(i) * fScalar;
         });
 
-        return new JMatrix(result, length, channels, height, width);
+        return JMatrix.wrap(result, length, channels, height, width);
     }
 
     /**
@@ -1896,7 +1920,7 @@ public class JMatrix {
             result[i] = access(i) / fScalar;
         });
 
-        return new JMatrix(result, length, channels, height, width);
+        return JMatrix.wrap(result, length, channels, height, width);
     }
 
     /**

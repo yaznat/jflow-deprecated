@@ -335,9 +335,7 @@ public class Dataloader {
         int height = batch.get(0).getHeight();
         int width = batch.get(0).getWidth();
 
-        int batchLength = batchSize * channels * height * width;
-        int imageLength = channels * height * width;
-        JMatrix flattenedBatch = new JMatrix(batchSize, channels, height, width);
+        JMatrix flattenedBatch = JMatrix.zeros(batchSize, channels, height, width);
 
         IntStream.range(0, batchSize).parallel().forEach(i -> {
             JMatrix image = batch.get(i).getData();
@@ -455,7 +453,7 @@ public class Dataloader {
         int imageSize = channels * height * width;
 
         // Create a JMatrix with image dimensions
-        JMatrix imageBatch = new JMatrix(numImages, channels, height, width);
+        JMatrix imageBatch = JMatrix.zeros(numImages, channels, height, width);
 
         // Copy data into the JMatrix
         for (int i = 0; i < numImages; i++) {
@@ -484,7 +482,7 @@ public class Dataloader {
         int imageSize = channels * height * width;
 
         // Create a JMatrix with image dimensions
-        JMatrix imageBatch = new JMatrix(numImages, channels, height, width);
+        JMatrix imageBatch = JMatrix.zeros(numImages, channels, height, width);
 
         // Copy data into the JMatrix
         for (int i = 0; i < numImages; i++) {

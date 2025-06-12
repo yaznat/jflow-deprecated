@@ -26,7 +26,7 @@ public class Upsampling2D extends ShapeAlteringLayer{
         int newHeight = height * scaleFactor;
         int newWidth = width * scaleFactor;
 
-        JMatrix output = new JMatrix(numImages, channels, newHeight, newWidth);
+        JMatrix output = JMatrix.zeros(numImages, channels, newHeight, newWidth);
 
         IntStream.range(0, numImages * channels).parallel().forEach(index -> {
             int i = index / channels;  
@@ -53,7 +53,7 @@ public class Upsampling2D extends ShapeAlteringLayer{
     }
 
     @Override
-    // Shrink input gradient by scalefactor, summing regions
+    // Shrink input gradient by scale factor, summing regions
     public JMatrix backward(JMatrix input) {
         int numImages = input.length();
         int channels = input.channels();
@@ -64,7 +64,7 @@ public class Upsampling2D extends ShapeAlteringLayer{
         int newHeight = height / scaleFactor;
         int newWidth = width / scaleFactor;
 
-        JMatrix gradient = new JMatrix(numImages, channels, newHeight, newWidth);
+        JMatrix gradient = JMatrix.zeros(numImages, channels, newHeight, newWidth);
     
         IntStream.range(0, numImages * channels).parallel().forEach(index -> {
             int i = index / channels;  

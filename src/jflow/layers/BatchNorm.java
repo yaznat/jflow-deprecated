@@ -41,23 +41,22 @@ public class BatchNorm extends TrainableLayer {
         setNumTrainableParameters(featureSize * 2);
 
         // Initialize gamma values as 1.0
-        this.gamma = new JMatrix(1, featureSize, 1, 1, "gamma").fill(1.0f);
+        this.gamma = JMatrix.ones(1, featureSize, 1, 1).setName("gamma");
         
         // Initialize beta values as 0.0
-        this.beta = new JMatrix(1, featureSize, 1, 1, "beta");
+        this.beta = JMatrix.zeros(1, featureSize, 1, 1).setName("beta");
         
         // Initialize running mean as 0.0
-        this.runningMean = new JMatrix(1, featureSize, 1, 1, "runningMean");
+        this.runningMean = JMatrix.zeros(1, featureSize, 1, 1).setName("runningMean");
 
         // Initialize running var as 1.0
-        this.runningVar = new JMatrix(1, featureSize, 1, 1, "runningVar");
-        runningVar.fill(1.0f);
+        this.runningVar = JMatrix.ones(1, featureSize, 1, 1).setName("runningVar");
 
         // Initialize derivatives as 0.0
-        this.dGamma = new JMatrix(1, featureSize, 1, 1, "dGamma");
-        this.dBeta = new JMatrix(1, featureSize, 1, 1, "dBeta");
-        this.dxHatSum = new JMatrix(1, featureSize, 1, 1);
-        this.dxHatXhatSum = new JMatrix(1, featureSize, 1, 1);
+        this.dGamma = JMatrix.zeros(1, featureSize, 1, 1).setName("dGamma");
+        this.dBeta = JMatrix.zeros(1, featureSize, 1, 1).setName("dBeta");
+        this.dxHatSum = JMatrix.zeros(1, featureSize, 1, 1);
+        this.dxHatXhatSum = JMatrix.zeros(1, featureSize, 1, 1);
 
     }
 
@@ -106,7 +105,7 @@ public class BatchNorm extends TrainableLayer {
      * and spatial dimensions for each channel.
      */ 
     private JMatrix calcMean(JMatrix input) {
-        JMatrix mean = new JMatrix(1, featureSize, 1, 1);
+        JMatrix mean = JMatrix.zeros(1, featureSize, 1, 1);
         
         int batchSize = input.length();
         int channels = input.channels();
@@ -141,7 +140,7 @@ public class BatchNorm extends TrainableLayer {
      * Reuse the mean calculation.
      */ 
     private JMatrix calcVariance(JMatrix input, JMatrix mean) {
-        JMatrix var = new JMatrix(1, featureSize, 1, 1);
+        JMatrix var = JMatrix.zeros(1, featureSize, 1, 1);
         
         int batchSize = input.length();
         int channels = input.channels();

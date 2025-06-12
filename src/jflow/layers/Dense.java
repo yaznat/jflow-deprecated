@@ -13,8 +13,6 @@ public class Dense extends TrainableLayer {
     private JMatrix biases;
     private JMatrix dBiases;
 
-    private float[] tiedWeights;
-
     private int outputSize;
 
     private boolean useBias = true;
@@ -88,12 +86,12 @@ public class Dense extends TrainableLayer {
             
         });
 
-        this.weights = new JMatrix(weights, outputSize, inputSize, 1, 1, "weights");
-        this.dWeights = new JMatrix(outputSize, inputSize, 1, 1, "dWeights");
+        this.weights = JMatrix.wrap(weights, outputSize, inputSize, 1, 1).setName("weights");
+        this.dWeights = JMatrix.zeros(outputSize, inputSize, 1, 1).setName("dWeights");
 
         if (useBias) {
-            this.biases = new JMatrix(outputSize, 1, 1, 1, "biases");
-            this.dBiases = new JMatrix(outputSize, 1, 1, 1, "dBiases");
+            this.biases = JMatrix.wrap(biases, outputSize, 1, 1, 1).setName("biases");
+            this.dBiases = JMatrix.zeros(outputSize, 1, 1, 1).setName("dBiases");
         }   
         
     }
@@ -129,7 +127,7 @@ public class Dense extends TrainableLayer {
         }
         dWeights.setMatrix(gradient.matmul(lastInput.transpose2D(), true).getMatrix()); // avoid reassigning reference
         if (useBias) {
-            dBiases.setMatrix(gradient.sum0(true)); // scaled
+            dBiases.setMatrix(gradient.sum0(false));
         }
 
         // Save memory
@@ -196,7 +194,6 @@ public class Dense extends TrainableLayer {
                 dBiases.multiplyInPlace(scaleBias);
             }
         }
-   
     }
     /**
      * Set the weight matrix for weight tying.

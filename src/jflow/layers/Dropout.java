@@ -17,7 +17,7 @@ public class Dropout extends ShapePreservingLayer{
     }
     // Reset the dropout mask
     private void newDropoutMask(int inputSize, int outputSize) {
-        dropoutMask = new JMatrix(inputSize, outputSize, 1, 1);
+        dropoutMask = JMatrix.zeros(inputSize, outputSize, 1, 1);
         IntStream.range(0, inputSize).parallel().forEach(i -> {
             for (int j = 0; j < outputSize; j++) {
                 dropoutMask.set(i * outputSize + j, (
@@ -40,9 +40,7 @@ public class Dropout extends ShapePreservingLayer{
     @Override
     public JMatrix forward(JMatrix input, boolean training) {
         // Determine the type of mask to use
-        Layer prevLayer = getPreviousShapeInfluencer();
-      
-        boolean useFlat = prevLayer instanceof Dense;
+        boolean useFlat = getPreviousShapeInfluencer() instanceof Dense;
 
         if (useFlat) {
             newDropoutMask(input.length(), input.channels() * input.height() * input.width());
