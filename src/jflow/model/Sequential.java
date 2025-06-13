@@ -2,14 +2,10 @@ package jflow.model;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -61,10 +57,35 @@ public class Sequential{
 
     /**
      * Initializes an empty Sequential model.
+     * @param name the name to assign to this model.
      */
     public Sequential(String name){
         this.name = name;
         modelNum = sequentialCount++;
+    }
+
+    /**
+     * Initializes a Sequential model with given layers.
+     * @param layers JFlow Layers to add to this model. 
+     */
+    public Sequential(Layer... layers){
+        modelNum = sequentialCount++;
+        for (Layer l : layers) {
+            add(l);
+        }
+    }
+
+    /**
+     * Initializes a Sequential model with given layers.
+     * @param name the name to assign to this Sequential model.
+     * @param layers JFlow Layers to add to this model. 
+     */
+    public Sequential(String name, Layer... layers){
+        this.name = name;
+        modelNum = sequentialCount++;
+        for (Layer l : layers) {
+            add(l);
+        }
     }
     /**
      * Add a layer to the model.
@@ -115,19 +136,6 @@ public class Sequential{
             processFunctionalLayer((FunctionalLayer) layer);
         }
         return this;
-    }
-
-    // Checks if layers contains only FunctionalLayers 
-    private boolean onlyFunctionalLayers() {
-        if (layers.size() == 0) {
-            return false;
-        }
-        for (Layer l : layers) {
-            if (!(l instanceof FunctionalLayer)) {
-                return false;
-            }
-        }
-        return true;
     }
 
     private void processFunctionalLayer(FunctionalLayer functionalLayer) {

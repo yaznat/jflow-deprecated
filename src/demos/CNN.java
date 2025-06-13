@@ -7,8 +7,11 @@ import jflow.utils.Metrics;
 // Static import for cleaner UI
 import static jflow.model.Builder.*;
 /**
- * Demo to train a convolutional neural network (CNN) 
+ * Demo to train a convolutional neural network (CNN)
  * to classify trucks vs. automobiles using the CIFAR-10 dataset.
+ * 
+ * Note: All library methods are documented via Javadoc. 
+ * Hover in an IDE for details.
  */
 public class CNN {
     // Helper method to add a block to the model
@@ -17,7 +20,7 @@ public class CNN {
             .add(Conv2D(filters, 3, 1, "same_padding"))
             .add(Swish())
             .add(BatchNorm())
-            .add(Dropout(0.25))
+            .add(Dropout(0.2))
 
             .add(MaxPool2D(2, 2));
 
@@ -26,12 +29,14 @@ public class CNN {
     public static void main(String[] args) {
         // training constants
         final int BATCH_SIZE = 64;
+        final int NUM_EPOCHS = 30;
         final double VAL_PERCENT = 0.02;
         final double TEST_PERCENT = 0.02;
         
         // Cifar10 constants
         final int COLOR_CHANNELS = 3; // RGB images
         final int IMAGE_SIZE = 32;
+
         // Load data
         Dataloader loader = new Dataloader();
     // Use if necessary
@@ -58,22 +63,33 @@ public class CNN {
         loader.valTestSplit(VAL_PERCENT, TEST_PERCENT);
         loader.batch(BATCH_SIZE);
 
-        // Visualize a random training image
-        JPlot.displayImage(loader.getBatches()
-            .get(0).get((int)(Math.random() * BATCH_SIZE)), 20);
+        // Visualize a random training image from the first batch
+        int randIndex = (int)(Math.random() * BATCH_SIZE);
+        // Display a 32x32 image scaled up 20x for visibility
+        JPlot.displayImage(
+            loader.getBatches()
+                .get(0) // First batch
+                .get(randIndex), // Random image from batch
+            20 // Scale factor
+        );
 
         // Add simple augmentations to train images
         Transform augmentations = new Transform()
-            .randomFlip();
-            // .randomBrightness();
+            .randomFlip()
+            .randomBrightness();
 
         loader.applyAugmentations(augmentations);
 
 
         // Build the model
-        Sequential model = new Sequential("Cifar10_CNN");
-
-        model.setInputShape(InputShape(COLOR_CHANNELS, IMAGE_SIZE, IMAGE_SIZE)); 
+        Sequential model = new Sequential("Cifar10_CNN")
+            .setInputShape(
+                InputShape(
+                    COLOR_CHANNELS, 
+                    IMAGE_SIZE, 
+                    IMAGE_SIZE
+                )
+            ); 
 
         // Block 1
         addConvBlock(model, 32);
@@ -81,11 +97,14 @@ public class CNN {
         // Block 2
         addConvBlock(model, 64);
 
+        // Block 3
+        addConvBlock(model, 128);
+
 
         // Flatten and Dense layers
         model
             .add(Flatten())
-            .add(Dense(64))
+            .add(Dense(128))
             .add(Swish())
             .add(Dropout(0.3))
 
@@ -104,8 +123,14 @@ public class CNN {
         // model.loadWeights("saved_weights/Cifar10 CNN Cars vs Trucks");
 
         // Train the model
-        model.train(loader, 30, ModelCheckpoint(
-            "val_loss", "saved_weights/Cifar10 CNN Cars vs Trucks"));
+        model.train(
+            loader, 
+            NUM_EPOCHS,
+            ModelCheckpoint(
+                "val_loss", 
+                "saved_weights/Cifar10 CNN Cars vs Trucks"
+            )
+        );
 
         // Evaluate the model
         int[] predictions = model.predict(loader.getTestImages());

@@ -10,11 +10,15 @@ import static jflow.model.Builder.*;
 /**
  * Demo to train a neural network on the MNIST dataset.
  * Reaches ~97% test accuracy after 10 epochs.
+ * 
+ * Note: All library methods are documented via Javadoc. 
+ * Hover in an IDE for details.
  */
 public class NN {
     public static void main(String[] args) {
         // training constants
         final int BATCH_SIZE = 64;
+        final int NUM_EPOCHS = 10;
         final double VAL_PERCENT = 0.05;
         final double TEST_PERCENT = 0.05;
         
@@ -39,24 +43,31 @@ public class NN {
         loader.valTestSplit(VAL_PERCENT, TEST_PERCENT);
         loader.batch(BATCH_SIZE); 
 
-        // Visualize a random training image
-        JPlot.displayImage(loader.getBatches()
-            .get(0).get((int)(Math.random() * BATCH_SIZE)), 20);
+        // Visualize a random training image from the first batch
+        int randIndex = (int)(Math.random() * BATCH_SIZE);
+        // Display a 28x28 image scaled up 20x for visibility
+        JPlot.displayImage(
+            loader.getBatches()
+                .get(0) // First batch
+                .get(randIndex), // Random image from batch
+            20 // Scale factor
+        );
 
         
         // Build the model
-        Sequential model = new Sequential("MNIST_neural_network")
-            .add(Dense(128, InputShape(FLAT_IMAGE_SIZE)))
-            .add(Mish())
+        Sequential model = new Sequential(
+            "MNIST_neural_network",
+            Dense(128, InputShape(FLAT_IMAGE_SIZE)),
+            Mish(),
 
-            .add(Dense(64))
-            .add(Mish())
-            .add(Dropout(0.3))
+            Dense(64),
+            Mish(),
+            Dropout(0.2),
 
-            .add(Dense(NUM_CLASSES))
-            .add(Softmax())
-
-            .summary();
+            Dense(NUM_CLASSES),
+            Softmax()
+        )
+        .summary();
 
     // Try out different optimizers
         // model.compile(SGD(0.1, 0.9, true));
@@ -69,7 +80,14 @@ public class NN {
         // model.loadWeights("saved_weights/MNIST NN"); 
 
         // Train the model
-        model.train(loader, 10, ModelCheckpoint("val_loss", "saved_weights/MNIST NN"));
+        model.train(
+            loader, 
+            NUM_EPOCHS, 
+            ModelCheckpoint(
+                "val_loss", 
+                "saved_weights/MNIST NN"
+            )
+        );
 
         // Evaluate the model
         int[] predictions = model.predict(loader.getTestImages());
@@ -78,6 +96,5 @@ public class NN {
 
         double newAccuracy = Metrics.getAccuracy(predictions, loader.getTestLabels());
         System.out.println("Test accuracy:" + newAccuracy);
-
     }
 }
