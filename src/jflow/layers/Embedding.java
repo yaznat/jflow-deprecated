@@ -24,7 +24,6 @@ public class Embedding extends TrainableLayer {
             .multiply(0.02) // standard scale factor
             .setName("embedding"); 
         this.gradEmbeddings = JMatrix.zeros(vocabSize, embedDim, 1, 1).setName("dEmbedding");
-        System.out.println("Embedding weights mean: " + embeddings.mean());
     }
 
     public Embedding(int vocabSize, int embedDim, int[] inputShape) {
