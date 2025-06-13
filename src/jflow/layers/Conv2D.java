@@ -395,7 +395,7 @@ public class Conv2D extends TrainableLayer {
     }
     
     private void clipGradients(JMatrix gradients, double threshold) {
-        double norm = gradients.frobeniusNorm();
+        double norm = gradients.l2Norm();
         if (norm > threshold) {
             double scale = threshold / norm;
             gradients.multiplyInPlace(scale);

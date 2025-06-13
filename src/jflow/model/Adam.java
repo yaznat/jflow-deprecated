@@ -44,7 +44,7 @@ public class Adam extends Optimizer{
             double globalGradNormSquared = 0.0;
             for (JMatrix[] grads : layerGradients.values()) {
                 for (JMatrix grad : grads) {
-                    double frobeniusNorm = grad.frobeniusNorm();
+                    double frobeniusNorm = grad.l2Norm();
                     globalGradNormSquared += frobeniusNorm * frobeniusNorm;
                 }
             }

@@ -1,16 +1,14 @@
 package jflow.data;
-import java.util.Random;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.IntStream;
 
-
-
-
 public class JMatrix {
     private float[] matrix;
-    private int length, channels, height, width;
-    private Random rand = new Random();
+    private int length;
+    private int channels;
+    private int height;
+    private int width;
     private String name = null;
     /*
      * Cut-off size for matrices passed to matmul(). 
@@ -32,8 +30,6 @@ public class JMatrix {
             null, true);
     
 
-
-    // default constructor
     private JMatrix(float[] matrix, int length, int channels, int height, int width) {
         this.matrix = matrix;
         this.length = length;
@@ -68,7 +64,7 @@ public class JMatrix {
      * Initialize a new JMatrix with default values of zero.
      * JMatrix is in (N, C, H, W) format.
      * @param shape                The desired shape (N, channels, height, width).
-     * @throws IllegalArgumentException if the length of shape is not four.
+     * @throws IllegalArgumentException if the length of <b>shape</b> is not four.
      */
     public static JMatrix zeros(int[] shape) {
         if (shape.length != 4) {
@@ -93,7 +89,7 @@ public class JMatrix {
      * Initialize a new JMatrix with default values of one.
      * JMatrix is in (N, C, H, W) format.
      * @param shape                The desired shape (N, channels, height, width).
-     * @throws IllegalArgumentException if the length of shape is not four.
+     * @throws IllegalArgumentException if the length of <b>shape</b> is not four.
      */
     public static JMatrix ones(int[] shape) {
         if (shape.length != 4) {
@@ -110,14 +106,15 @@ public class JMatrix {
      * @param channels              The channel dimension.
      * @param height                The height dimension.
      * @param width                 The width dimension.
-     * @throws IllegalArgumentException if the dimensional information doesn't correspond to the length of values.
+     * @throws IllegalArgumentException if the dimensional information 
+     * doesn't correspond to the length of <b>values</b>.
      */
     public static JMatrix wrap(float[] values, int length, int channels, int height, int width) {
         int reportedLength = length * channels * height * width;
         if (values.length != reportedLength) {
             throw new IllegalArgumentException(
                 String.format(
-                    "Invalid dimensional information." + 
+                    "Invalid dimensional information. " + 
                     "Length of values: %d. Reported length: %d",
                     values.length, reportedLength
                 )
@@ -131,8 +128,8 @@ public class JMatrix {
      * JMatrix is in (N, C, H, W) format.
      * @param values                The values to wrap in this JMatrix.
      * @param shape                 The desired shape (N, channels, height, width).
-     * @throws IllegalArgumentException if the length of shape is not four, 
-     * or if the dimensional information doesn't correspond to the length of values.
+     * @throws IllegalArgumentException if the length of <b>shape</b> is not four, 
+     * or if the dimensional information doesn't correspond to the length of <b>values</b>.
      */
     public static JMatrix wrap(float[] values, int[] shape) {
         if (shape.length != 4) {
@@ -141,9 +138,26 @@ public class JMatrix {
         return wrap(values, shape[0], shape[1], shape[2], shape[3]);
     }
 
-    protected float access(int index) {
-        // Groundwork for new features
-        return matrix[index];
+    /**
+     * Create a JMatrix with random values in the range [0,1]
+     * @param length                        the N dimension of the JMatrix.
+     * @param channels                      the channel dimension of the JMatrix.
+     * @param height                        the height dimension of the JMatrix.
+     * @param width                         the width dimension of the JMatrix.
+     * 
+     * @return                              a new JMatrix with the specified dimensions 
+     * and random values in the range [0,1].
+     * 
+     */
+    public static JMatrix randn(int length, int channels, int height, int width) {
+        int size = length * channels * height * width;
+
+        float[] noise = new float[size];
+        IntStream.range(0, size).parallel().forEach(i -> {
+            noise[i] = (float)ThreadLocalRandom.current().nextDouble();
+        });
+
+        return JMatrix.wrap(noise, length, channels, height, width);
     }
 
     /**
@@ -154,7 +168,7 @@ public class JMatrix {
     }
 
     /**
-     * Name this JMatrix
+     * Name this JMatrix.
      * @param name          The name to assign.
      */
     public JMatrix setName(String name) {
@@ -164,7 +178,7 @@ public class JMatrix {
 
     /**
      * Access the name of this JMatrix. 
-     * @return the name if set. <li> otherwise null.
+     * @return <b> name </b> if it's set. <li> otherwise null. </li>
      */
     public String getName() {
         return name;
@@ -172,7 +186,7 @@ public class JMatrix {
 
     /**
      * The shape of the JMatrix.
-     * @returns {length, channels, height, width} in an int[4].
+     * @return {length, channels, height, width} in an int[4].
      */
     public int[] shape() {
         return new int[]{length, channels, height, width};
@@ -194,7 +208,6 @@ public class JMatrix {
         return this;
     }
 
-
     /**
      * Set the wrapped array to a new value. Resize not allowed.
      * @param matrix                            The new array to replace the original. 
@@ -215,8 +228,8 @@ public class JMatrix {
      * Set the wrapped array to a new value. Resize allowed.
      * @param matrix                            The new array to replace the original. 
      * @param shape                             The four dimensional shape of the new matrix.
-     * @exception IllegalArgumentException      if: <p> <ul> <li>  the length of shape is not four. <p> <li>
-     *  the reported number of elements is unequal to the length of the matrix. <ul>
+     * @exception IllegalArgumentException      if: <ul> <li>  the length of shape is not four. </li> 
+     * <li> the reported number of elements is unequal to the length of the matrix. </li> </ul> 
      */
     public void setMatrix(float[] matrix, int[] shape) {
         int newSize = length * channels * height * width;
@@ -244,7 +257,7 @@ public class JMatrix {
         int itemSize = channels * height * width;
         float[] internalValues = values.getMatrix();
         if (internalValues.length != itemSize) {
-            throw new IllegalArgumentException("Unexpected length: " + values.length + 
+            throw new IllegalArgumentException("Unexpected length: " + internalValues.length + 
                 ". Expected: " + itemSize);
         }
         IntStream.range(0, itemSize)
@@ -262,7 +275,7 @@ public class JMatrix {
         float[] values = new float[index];
 
         IntStream.range(0, index).parallel().forEach(i -> {
-            values[i] = access(i);
+            values[i] = matrix[i];
         });
 
         return values;
@@ -278,7 +291,7 @@ public class JMatrix {
         float[] values = new float[returnSize];
 
         IntStream.range(0, index).parallel().forEach(i -> {
-            values[i] = access(index + i);
+            values[i] = matrix[index + i];
         });
 
         return values;
@@ -321,7 +334,7 @@ public class JMatrix {
      * @param index               The 1D index of the item to get.
      */
     public float get(int index) {
-        return access(index);
+        return matrix[index];
     }
 
     /**
@@ -332,9 +345,9 @@ public class JMatrix {
      * @param widthIndex                The width index of the item to get.
      */
     public float get(int lengthIndex, int channelIndex, int heightIndex, int widthIndex) {
-        return access(lengthIndex * channels * height * 
+        return matrix[lengthIndex * channels * height * 
             width + channelIndex * height * width + 
-            heightIndex * width + widthIndex);
+            heightIndex * width + widthIndex];
     }
 
 
@@ -354,24 +367,12 @@ public class JMatrix {
 
         return JMatrix.wrap(result, length, 1, 1, 1);
     }
-    /**
-     * Get a channels * height * width element.
-     * @param lengthIndex The index along the batch dimension.
-     */
-    public float[] getImage(int lengthIndex) {
-        int sliceSize = channels * height * width;
-        int startIdx = lengthIndex * sliceSize;  
-        float[] slice = new float[sliceSize];
-        System.arraycopy(matrix, startIdx, slice, 0, sliceSize);
-        return slice;
-    }
-
 
     /**
      * Get a channels * height * width element wrapped in a JMatrix.
      * @param lengthIndex The index along the batch dimension.
      */
-     public JMatrix getWrapped(int lengthIndex) {
+     public JMatrix getItem(int lengthIndex) {
         int sliceSize = channels * height * width;
         int startIdx = lengthIndex * sliceSize;  
         float[] slice = new float[sliceSize];
@@ -393,19 +394,6 @@ public class JMatrix {
     }
 
     /**
-     * Get a height * width element wrapped in a JMatrix.
-     * @param lengthIndex The index along the batch dimension.
-     * @param channelIndex The index along the channel dimension.
-     */
-    public JMatrix getWrapped(int lengthIndex, int channelIndex) {
-        int sliceSize = height * width;
-        int startIdx = lengthIndex * channels * sliceSize + channelIndex * sliceSize;
-        float[] slice = new float[sliceSize];
-        System.arraycopy(matrix, startIdx, slice, 0, sliceSize);
-        return JMatrix.wrap(slice, 1, 1, height, width);
-    }
-
-    /**
      * Set a height * width element.
      * @param lengthIndex The index along the batch dimension.
      * @param channelIndex The index along the channel dimension.
@@ -413,7 +401,7 @@ public class JMatrix {
      * @throws IllegalArgumentException If the number of values is
      * unequal to the height * width of the JMatrix.
      */
-    public void set(int lengthIndex, int channelIndex, float[] values) {
+    public void setImage(int lengthIndex, int channelIndex, float[] values) {
         int sliceSize = height * width;
         if (values.length != sliceSize) {
             throw new IllegalArgumentException("Invalid slice size. Expected " + sliceSize + " values.");
@@ -483,7 +471,7 @@ public class JMatrix {
      * @param channelIndex              The channel index of the item to set.
      * @param heightIndex               The height index of the item to set.
      * @param widthIndex                The width index of the item to set.
-     * @param value             The value to set, cast to a float.            
+     * @param value                     The value to set, cast to a float.            
      */
     public void set(int lengthIndex, int channelIndex, int heightIndex, int widthIndex, double value) {
         matrix[lengthIndex * channels * height * 
@@ -497,7 +485,7 @@ public class JMatrix {
      * @param channelIndex              The channel index of the item to add to.
      * @param heightIndex               The height index of the item to add to.
      * @param widthIndex                The width index of the item to add to.
-     * @param value             The value to add to the existing item, cast to a float.            
+     * @param value                     The value to add to the existing item, cast to a float.            
      */
     public void addTo(int lengthIndex, int channelIndex, int heightIndex, int widthIndex, double value) {
         matrix[lengthIndex * channels * height * 
@@ -511,234 +499,116 @@ public class JMatrix {
      * The max value in the JMatrix.             
      */
     public double max() {
-        double max = Double.NEGATIVE_INFINITY;
-        for (double d : matrix) {
-            max = Math.max(max, d);
-        }
-        return max;
+        return Statistics.max(matrix);
     }
     /**
      * The max absolute value in the JMatrix.             
      */
     public double absMax() {
-        double max = Double.NEGATIVE_INFINITY;
-        for (double d : matrix) {
-            max = Math.max(max, Math.abs(d));
-        }
-        return max;
+        return Statistics.absMax(matrix);
     }
-    /**
-     * The 1D index of the max value.
-     */
-    public int argmax() {
-        double maxValue = Double.NEGATIVE_INFINITY;
-        int maxIndex = 0;
-        for (int i = 0; i < size(); i++) {
-            if (access(i) > maxValue) {
-                maxValue = access(i);
-                maxIndex = i;
-            }
-        }
-        return maxIndex;
-    }
-    /**
-     * Finds the index of max values along a given axis.
-     * @param axis              The specified axis in the range [0,3] inclusive.
-     * @return                  An array containing the indexes of max values along the given axis
-     */
-    public int[] argmax(int axis) {
-        if (axis < 0 || axis > 3) {
-            throw new IllegalArgumentException("Axis must be between 0 and 3");
-        }
-    
-        int[] dimensions = new int[]{length, channels, height, width};
-        int[] strides = new int[]{channels * height * width, height * width, width, 1};
-    
-        int axisSize = dimensions[axis];
-        int resultSize = matrix.length / axisSize;
-        int[] result = new int[resultSize];
-    
-        IntStream.range(0, resultSize).parallel().forEach(opIndex -> {
-            int baseOffset = indexHelper(opIndex, axis, dimensions, strides);
-    
-            float maxVal = Float.NEGATIVE_INFINITY;
-            int maxIdx = 0;
-    
-            for (int i = 0; i < axisSize; i++) {
-                int offset = baseOffset + i * strides[axis];
-                if (matrix[offset] > maxVal) {
-                    maxVal = matrix[offset];
-                    maxIdx = i;
-                }
-            }
-    
-            result[opIndex] = maxIdx;
-        });
-    
-        return result;
-    }
+
     /**
      * The mean of all values in the JMatrix.
      */
     public double mean() {
-        double mean = 0;
+        return Statistics.mean(matrix);
 
-        int size = size();
-        for (int i = 0; i < size; i++) {
-            mean += access(i);
-        
-        }
-        return mean / size;
     }
 
     /**
      * The mean of the absolute value of all items in the JMatrix.
      */
     public double absMean() {
-        double mean = 0;
+        return Statistics.absMean(matrix);
 
-        int size = size();
-        for (int i = 0; i < size; i++) {
-            mean += Math.abs(access(i));
-        
-        }
-        return mean / size;
     }
+
+    /**
+     * Finds the index of max values along a given axis.
+     * @param axis              The specified axis in the range [0,3] inclusive.
+     * @return                  An array containing the indices of max values along the given axis
+     */
+    public int[] argmax(int axis) {
+        return Statistics.argmax(matrix, axis, shape());
+    }
+    
     /**
      * The sum of all values in the JMatrix.
      */
     public double sum() {
-        double sum = 0;
-
-        int size = size();
-        for (int i = 0; i < size; i++) {
-            sum += access(i);
-        
-        }
-        return sum;
+        return Statistics.sum(matrix);
     }
 
     /**
-     * Sums the elements of the matrix along a specified axis.
+     * Sums the elements of this JMatrix along specified axes, reducing those dimensions to 1.
      * 
-     * @param axis The axis along which to perform the sum (0=batch, 1=channel, 2=height, 3=width)
-     * @return A new JMatrix with the summed values, with dimension 1 in the summed axis
+     * @param axis The axis to preserve (0 = batch only, 1 = batch + channel, 2 = batch + channel + height)
+     *     <ul>  <li>  axis = 0: Sum over c * h * w, result shape: (length, 1, 1, 1) </li>
+     *           <li>  axis = 1: Sum over h * w, result shape: (length, channels, 1, 1) </li>
+     *           <li>  axis = 2: Sum over w, result shape: (length, channels, height, 1) </li>
+     *     </ul>
+     * @return A new JMatrix with the summed values
      */
     public JMatrix sum(int axis) {
-        int[] shape = new int[]{length, channels, height, width};
-        
-        // Create a new matrix with the summed dimension set to 1
-        shape[axis] = 1;
-        JMatrix result = JMatrix.zeros(shape[0], shape[1], shape[2], shape[3]);
-        
-        // Perform the sum based on the specified axis
+        // Calculate the sum
+        float[] result = Statistics.sum(
+            matrix,
+            axis,
+            shape()
+        );
+        // Determine the wrapper
         switch (axis) {
-            case 0: // Sum across batch dimension
-                for (int n = 0; n < length; n++) {
-                    for (int c = 0; c < channels; c++) {
-                        for (int h = 0; h < height; h++) {
-                            for (int w = 0; w < width; w++) {
-                                result.set(0, c, h, w, result.get(0, c, h, w) + 
-                                    get(n, c, h, w));
-                            }
-                        }
-                    }
-                }
-                break;
+            case 0: // Sum over channels, height, width - preserve only batch dimension
+                return JMatrix.wrap(result, length, 1, 1, 1);
                 
-            case 1: // Sum across channel dimension
-                for (int n = 0; n < length; n++) {
-                    for (int c = 0; c < channels; c++) {
-                        for (int h = 0; h < height; h++) {
-                            for (int w = 0; w < width; w++) {
-                                result.set(n, 0, h, w, result.get(n, 0, h, w) + 
-                                    get(n, c, h, w));
-                            }
-                        }
-                    }
-                }
-                break;
+            case 1: // Sum over height, width - preserve batch and channel dimensions
+                return JMatrix.wrap(result, length, channels, 1, 1);
                 
-            case 2: // Sum across height dimension
-                for (int n = 0; n < length; n++) {
-                    for (int c = 0; c < channels; c++) {
-                        for (int h = 0; h < height; h++) {
-                            for (int w = 0; w < width; w++) {
-                                result.set(n, c, 0, w, result.get(n, c, 0, w) + 
-                                    get(n, c, h, w));
-                            }
-                        }
-                    }
-                }
-                break;
-                
-            case 3: // Sum across width dimension
-                for (int n = 0; n < length; n++) {
-                    for (int c = 0; c < channels; c++) {
-                        for (int h = 0; h < height; h++) {
-                            for (int w = 0; w < width; w++) {
-                                result.set(n, c, h, 0, result.get(n, c, h, 0) + 
-                                get(n, c, h, w));
-                            }
-                        }
-                    }
-                }
-                break;
-                
+            case 2: // Sum over width - preserve batch, channel, and height dimensions  
+                return JMatrix.wrap(result, length, channels, height, 1);
+
             default:
-                throw new IllegalArgumentException("Axis must be between 0 and 3");
+                throw new IllegalArgumentException("Axis must be 0, 1, or 2. Got: " + axis);
         }
-        
-        return result;
     }
    
-    /**
-     * The frobenius norm is calculated as: <p>
-     * For every x -> <p>
-     * - Raise x ^ 2. <p>
-     * - Add it to the sum. <p>
-     * Finally, square the sum.
-     */
-    public float frobeniusNorm() {
-        float sum = 0;
-
-        int size = size();
-        for (int i = 0; i < size; i++) {
-            float pixel = access(i);
-            sum += pixel * pixel;
-        
-        }
-        return (float)Math.sqrt(sum);
-    }
-
     /**
      * The l1 norm is calculated as: <p>
      * For every x -> <p>
      * Take the abosolute value and add it to the sum.
      * 
      */
-    public float l1Norm() {
-        float sum = 0;
-        int size = size();
-        for (int i = 0; i < size; i++) {
-            sum += Math.abs(access(i));
-        }
-        return sum;
+    public double l1Norm() {
+        return Statistics.l1Norm(matrix);
+    }
+
+    /**
+     * The l2 norm is calculated as: <p>
+     * For every x -> <p>
+     * - Raise x ^ 2. <p>
+     * - Add it to the sum. <p>
+     * Finally, square the sum.
+     */
+    public double l2Norm() {
+        return Statistics.l2Norm(matrix);
     }
 
     /**
      * Count the number of items in the JMatrix of a certain value.
      * @param value             The value to count instances of.
      */
-    public int count(int value) {
-        int count = 0;
-        int size = size();
-        for (int i = 0; i < size; i++) {
-            if (access(i) == value) {
-                count++;
-            }
-        }
-        return count;
+    public int count(float value) {
+        return Statistics.count(matrix, value);
+    }
+
+    /**
+     * Scale values in the JMatrix from [0, n] to [0, 1].
+     * @return A new JMatrix with the changes applied.
+     */
+    public JMatrix scaleSigmoid() {
+        double max = max();
+        return multiply(1.0 / max);
     }
 
     /**
@@ -751,57 +621,9 @@ public class JMatrix {
      * @return A new JMatrix with softmax applied along the specified axis.
      */
     public JMatrix softmax(int axis) {
-        if (axis < 0 || axis > 3) {
-            throw new IllegalArgumentException("Axis must be between 0 and 3");
-        }
+        float[] result = Statistics.softmax(matrix, axis, shape(), THREAD_POOL);
         
-        // Create result matrix with same dimensions
-        float[] result = new float[matrix.length];
-        
-        try {
-            THREAD_POOL.submit(() -> {
-                // Determine the sizes and strides based on dimensions
-                int[] dimensions = new int[]{length, channels, height, width};
-                int[] strides = new int[]{channels * height * width, height * width, width, 1};
-                
-                // Calculate the size of the axis to apply softmax to
-                int axisSize = dimensions[axis];
-                
-                // Calculate the number of softmax operations to perform
-                int numOperations = matrix.length / axisSize;
-                
-                // Process each softmax operation in parallel
-                IntStream.range(0, numOperations).parallel().forEach(opIndex -> {
-                    // Calculate the starting offset for this operation
-                    
-                    int baseOffset = indexHelper(opIndex, axis, dimensions, strides);
-                    
-                    // Find max value for numerical stability
-                    float maxVal = Float.NEGATIVE_INFINITY;
-                    for (int i = 0; i < axisSize; i++) {
-                        int offset = baseOffset + i * strides[axis];
-                        maxVal = Math.max(maxVal, matrix[offset]);
-                    }
-                    
-                    // Calculate sum of exponentials
-                    float sumExp = 0.0f;
-                    for (int i = 0; i < axisSize; i++) {
-                        int offset = baseOffset + i * strides[axis];
-                        sumExp += Math.exp(matrix[offset] - maxVal);
-                    }
-                    
-                    // Calculate softmax values
-                    for (int i = 0; i < axisSize; i++) {
-                        int offset = baseOffset + i * strides[axis];
-                        result[offset] = (float) Math.exp(matrix[offset] - maxVal) / sumExp;
-                    }
-                });
-            }).get();
-        } catch (Exception e) {
-            throw new RuntimeException("Error in JMatrix.Softmax(axis = " + axis + ")", e);
-        }
-        
-        return JMatrix.wrap(result, length, channels, height, width);
+        return JMatrix.wrap(result, shape());
     }
     /**
      * Perform log softmax along a given axis. Avoids overflow and underflow.
@@ -813,83 +635,8 @@ public class JMatrix {
      * @return A new JMatrix with log softmax applied along the specified axis.
      */
     public JMatrix logSoftmax(int axis) {
-        if (axis < 0 || axis > 3) {
-            throw new IllegalArgumentException("Axis must be between 0 and 3");
-        }
-
-        float[] result = new float[size()];
-        try {
-            THREAD_POOL.submit(() -> {
-                // Determine the sizes and strides based on dimensions
-                int[] dimensions = new int[]{length, channels, height, width};
-                int[] strides = new int[]{channels * height * width, height * width, width, 1};
-
-                // Calculate the size of the axis to apply log softmax to
-                int axisSize = dimensions[axis];
-
-                // Calculate the number of log softmax operations to perform
-                int numOperations = matrix.length / axisSize;
-
-                IntStream.range(0, numOperations).parallel().forEach(opIndex -> {
-                    // Calculate the starting offset
-                    int baseOffset = indexHelper(opIndex, axis, dimensions, strides);
-                    // Find max value for numerical stability
-                    float maxVal = Float.NEGATIVE_INFINITY;
-                    for (int i = 0; i < axisSize; i++) {
-                        int offset = baseOffset + i * strides[axis];
-                        maxVal = Math.max(maxVal, matrix[offset]);
-                    }
-                    // Calculate sum of exponentials
-                    float sumExp = 0.0f;
-                    for (int i = 0; i < axisSize; i++) {
-                        int offset = baseOffset + i * strides[axis];
-                        sumExp += Math.exp(matrix[offset] - maxVal);
-                    }
-                    // Calculate log softmax values
-                    float logSumExp = (float) Math.log(sumExp) + maxVal;
-                    for (int i = 0; i < axisSize; i++) {
-                        int offset = baseOffset + i * strides[axis];
-                        result[offset] = matrix[offset] - logSumExp;
-                    }
-                });
-            }).get();
-        } catch (Exception e) {
-            throw new RuntimeException("Error in JMatrix.LogSoftmax(axis = " + axis + ")", e);
-        }
-        return JMatrix.wrap(result, length, channels, height, width);
-    }
-
-    // NOTE: THIS METHOD IS ADAPTED FROM CODE GENERATED BY CLAUDE.AI
-    private static int indexHelper(int opIndex, int axis, int[] dimensions, int[] strides) {
-        int[] indices = new int[4];
-        int remainingIndex = opIndex;
-        
-        for (int dim = 0; dim < 4; dim++) {
-            if (dim == axis) continue;
-            
-            // Calculate the size of all dimensions after this one (except the softmax axis)
-            int productOfLaterDims = 1;
-            for (int laterDim = dim + 1; laterDim < 4; laterDim++) {
-                if (laterDim != axis) {
-                    productOfLaterDims *= dimensions[laterDim];
-                }
-            }
-            
-            // Calculate the index for this dimension
-            indices[dim] = remainingIndex / productOfLaterDims;
-            remainingIndex %= productOfLaterDims;
-        }
-        
-        // Set the index for the softmax axis to 0
-        indices[axis] = 0;
-        
-        // Calculate the base offset
-        int baseOffset = 0;
-        for (int dim = 0; dim < 4; dim++) {
-            baseOffset += indices[dim] * strides[dim];
-        }
-        
-        return baseOffset;
+        float[] result = Statistics.logSoftmax(matrix, axis, shape(), THREAD_POOL);
+        return JMatrix.wrap(result, shape());
     }
     
     /**
@@ -923,28 +670,6 @@ public class JMatrix {
     }
 
     /**
-     * Create a JMatrix with random values in the range [0,1]
-     * @param length                        the N dimension of the JMatrix.
-     * @param channels                      the channel dimension of the JMatrix.
-     * @param height                        the height dimension of the JMatrix.
-     * @param width                         the width dimension of the JMatrix.
-     * 
-     * @return                              a new JMatrix with the specified dimensions 
-     * and random values in the range [0,1].
-     * 
-     */
-    public static JMatrix randn(int length, int channels, int height, int width) {
-        int size = length * channels * height * width;
-
-        float[] noise = new float[size];
-        IntStream.range(0, size).parallel().forEach(i -> {
-            noise[i] = (float)ThreadLocalRandom.current().nextDouble();
-        });
-
-        return JMatrix.wrap(noise, length, channels, height, width);
-    }
-
-    /**
      * Generates a position ID matrix corresponding to the input token ID matrix.
      *
      * For each token in the input tokenIDs matrix, this function assigns a position index (0 to seqLen - 1)
@@ -967,50 +692,6 @@ public class JMatrix {
     
         return positions;
     }
-    
-
-    /**
-     * Scale values in the JMatrix from [0, n] to [0, 1].
-     * @return A new JMatrix with the changes applied.
-     */
-    public JMatrix scaleSigmoid() {
-        double max = max();
-        return multiply(1.0 / max);
-    }
-
-    /**
-     * Add Gaussian noise to each item in the JMatrix.
-     * @param mean              The mean of the Gaussian noise.
-     * @param stdDev            The standard deviation of the Gaussian noise.
-     * @return A new JMatrix with the changes applied.
-     */
-    public JMatrix addGaussianNoise(double mean, double stdDev) {
-        JMatrix noisy = this.zerosLike();
-        for (int i = 0; i < size(); i++) {
-            noisy.set(i, access(i) + (float)(rand.nextGaussian() * stdDev + mean));
-        }
-        return noisy;
-    }
-
-    /**
-     * Sum values along rows for 2D use cases.
-     * @param scale Whether or not to scale results by 1 / numRows.
-     */
-    public float[] sum0(boolean scale) {
-        int rows = length;
-        int cols = channels * height * width;
-
-        float scaleFactor = (scale) ? 1.0f / rows : 1;
-
-        float[] sum = new float[rows];
-        IntStream.range(0, rows).parallel().forEach(i -> { 
-            for (int j = 0; j < cols; j++) {
-                sum[i] = access(i * cols + j);
-            }
-            sum[i] *= scaleFactor;
-        });
-        return sum;
-    }
 
     /**
      * Transpose a 2D matrix, swapping the batch dimension (N)
@@ -1024,18 +705,12 @@ public class JMatrix {
         int newHeight = oldWidth;
         int newWidth = oldHeight;
 
-        float[] rotated = new float[size()];
+        float[] transposed = new float[size()];
 
-        IntStream.range(0, oldHeight).parallel().forEach(row -> {
-            for (int col = 0; col < oldWidth; col++) {
-                int oldIndex = row * oldWidth + col;
-                int newIndex = col * newWidth + row;
-                rotated[newIndex] = access(oldIndex);
-            }
-        });
+        MatrixTranspose.transpose2DMatrix(matrix, oldHeight, oldWidth,transposed);
 
         // Assign all features to channels for simplicity
-        return JMatrix.wrap(rotated, newHeight, newWidth, 1, 1);
+        return JMatrix.wrap(transposed, newHeight, newWidth, 1, 1);
     }
 
     /**
@@ -1048,218 +723,44 @@ public class JMatrix {
      * @return A new JMatrix with shape (N, H * W, C, 1)
      */
     public JMatrix transpose3D() {
-        int numBatches = length;     
-        int oldC = channels;         
-        int oldH = height;           
-        int oldW = width;           
-    
-        int newH = oldH * oldW; // Flatten spatial dimensions
-        int newW = oldC; // Channels become features
-        float[] transposed = new float[size()]; 
-    
-        int oldPerBatch = oldC * oldH * oldW;
-        int newPerBatch = newH * newW;
-    
-        IntStream.range(0, numBatches).parallel().forEach(batch -> {
-            for (int c = 0; c < oldC; c++) {
-                for (int h = 0; h < oldH; h++) {
-                    for (int w = 0; w < oldW; w++) {
-                        int hwIndex = h * oldW + w;
-                        int oldIndex = batch * oldPerBatch + c * oldH * oldW + h * oldW + w;
-                        int newIndex = batch * newPerBatch + hwIndex * oldC + c;
-                        transposed[newIndex] = access(oldIndex);
-                    }
-                }
-            }
-        });
-    
-        return JMatrix.wrap(transposed, numBatches, newH, newW, 1);
-    }
-
-    /**
-     * Matrix transpose for 4D use cases. Transposes every (H, W) item to (W, H).
-     * @return A new JMatrix with shape (N, C, W, H)
-     */
-    public JMatrix transpose4D() {
-        int newHeight = width;
-        int newWidth = height;
+        int batch = length;
+        int oldDim1 = channels;           // C
+        int oldDim2 = height * width;     // H * W
         
-        float[] resultData = new float[size()];
+        int newDim1 = oldDim2;            // H * W becomes first dimension
+        int newDim2 = oldDim1;            // C becomes second dimension
         
-        IntStream.range(0, length * channels).parallel().forEach(batchChannel -> {
-            int batch = batchChannel / channels;
-            int channel = batchChannel % channels;
-            
-            int oldOffset = batch * (channels * height * width) + channel * (height * width);
-            int newOffset = batch * (channels * newHeight * newWidth) + channel * (newHeight * newWidth);
-            
-            for (int h = 0; h < height; h++) {
-                for (int w = 0; w < width; w++) {
-                    int oldIndex = oldOffset + h * width + w;
-                    int newIndex = newOffset + w * newWidth + h; 
-                    resultData[newIndex] = matrix[oldIndex];
-                }
-            }
-        });
+        float[] transposed = new float[size()];
+        MatrixTranspose.transpose3DMatrix(matrix, batch, oldDim1, oldDim2, transposed);
         
-        return JMatrix.wrap(resultData, length, channels, newHeight, newWidth);
+        return JMatrix.wrap(transposed, batch, newDim1, newDim2, 1);
     }
 
     /**
      * Transpose the matrix by rearranging dimensions according to a particular order.
-     * @param axis1 The dimension to use as the first dimension (0=N, 1=C, 2=H, 3=W)
-     * @param axis2 The dimension to use as the second dimension (0=N, 1=C, 2=H, 3=W)
-     * @param axis3 The dimension to use as the third dimension (0=N, 1=C, 2=H, 3=W)
-     * @param axis4 The dimension to use as the fourth dimension (0=N, 1=C, 2=H, 3=W)
+     * @param axis1                         The dimension to use as the first dimension (0=N, 1=C, 2=H, 3=W)
+     * @param axis2                         The dimension to use as the second dimension (0=N, 1=C, 2=H, 3=W)
+     * @param axis3                         The dimension to use as the third dimension (0=N, 1=C, 2=H, 3=W)
+     * @param axis4                         The dimension to use as the fourth dimension (0=N, 1=C, 2=H, 3=W)
+     * @throws IllegalArgumentException     If axis values are not a permuation of (0, 1, 2, 3).
      */
     // NOTE: THIS FUNCTION IS PARTIALLY GENERATED BY CLAUDE.AI
     public JMatrix transpose(int axis1, int axis2, int axis3, int axis4) {
-        // Check input values
-        int[] axes = {axis1, axis2, axis3, axis4};
-        boolean[] used = new boolean[4];
-        for (int axis : axes) {
-            if (axis < 0 || axis > 3) {
-                throw new IllegalArgumentException("Axis values must be between 0 and 3 inclusive");
-            }
-            if (used[axis]) {
-                throw new IllegalArgumentException("Axis values must be a permutation of 0, 1, 2, 3");
-            }
-            used[axis] = true;
-        }
+        float[] result = new float[size()];
+        MatrixTranspose.transpose4DMatrixByDims(
+            matrix, 
+            length, channels, height, width, 
+            axis1, axis2, axis3, axis4, 
+            result
+        );
 
-        int[] dims = {length, channels, height, width};
-        
-        // Calculate new dimensions after transposition
+        int[] dims = shape();
         int newLength = dims[axis1];
         int newChannels = dims[axis2];
         int newHeight = dims[axis3];
         int newWidth = dims[axis4];
         
-        // Output array
-        float[] transposed = new float[size()];
-        
-        // Pre-calculate the permutation mapping for faster index calculation
-        int[] oldDims = {length, channels, height, width};
-        
-        // Pre-calculate strides for both original and new array
-        int[] oldStrides = new int[4];
-        oldStrides[3] = 1;                           // W dimension (innermost)
-        oldStrides[2] = width;                       // H dimension
-        oldStrides[1] = height * width;              // C dimension
-        oldStrides[0] = channels * height * width;   // N dimension (outermost)
-        
-        int[] newStrides = new int[4];
-        newStrides[3] = 1;                                   // W dimension
-        newStrides[2] = newWidth;                            // H dimension
-        newStrides[1] = newHeight * newWidth;                // C dimension
-        newStrides[0] = newChannels * newHeight * newWidth;  // N dimension
-        
-        // Calculate exact number of elements for better work distribution
-        final int totalElements = length * channels * height * width;
-        final int THRESHOLD = 1024;
-        
-        // For small matrices, use a single-threaded approach
-        if (totalElements <= THRESHOLD) {
-            transposeSequential(transposed, axes, oldDims, oldStrides, newStrides);
-        } else {
-            int numThreads = Runtime.getRuntime().availableProcessors();
-            int blockSize = Math.max(1, totalElements / (numThreads * 4));
-            
-            IntStream.range(0, (totalElements + blockSize - 1) / blockSize)
-                    .parallel()
-                    .forEach(block -> {
-                        int start = block * blockSize;
-                        int end = Math.min(start + blockSize, totalElements);
-                        transposeBlock(transposed, axes, oldDims, oldStrides, newStrides, start, end);
-                    });
-        }
-        
-        return JMatrix.wrap(transposed, newLength, newChannels, newHeight, newWidth);
-    }
-
-    /**
-     * Sequential transposition for small matrices
-     */
-    // NOTE: THIS FUNCTION IS PARTIALLY GENERATED BY CLAUDE.AI
-    private void transposeSequential(float[] transposed, int[] axes, int[] oldDims, int[] oldStrides, int[] newStrides) {
-        int length = oldDims[0];
-        int channels = oldDims[1];
-        int height = oldDims[2];
-        int width = oldDims[3];
-        
-        for (int n = 0; n < length; n++) {
-            for (int c = 0; c < channels; c++) {
-                for (int h = 0; h < height; h++) {
-                    for (int w = 0; w < width; w++) {
-                        // Original coordinates
-                        int[] coords = {n, c, h, w};
-                        
-                        // Calculate original index
-                        int originalIndex = n * oldStrides[0] + c * oldStrides[1] + 
-                                        h * oldStrides[2] + w * oldStrides[3];
-                        
-                        // Calculate new coordinates after transposition
-                        int newN = coords[axes[0]];
-                        int newC = coords[axes[1]];
-                        int newH = coords[axes[2]];
-                        int newW = coords[axes[3]];
-                        
-                        // Calculate new index directly
-                        int newIndex = newN * newStrides[0] + newC * newStrides[1] + 
-                                    newH * newStrides[2] + newW * newStrides[3];
-                        
-                        // Copy the value
-                        transposed[newIndex] = access(originalIndex);
-                    }
-                }
-            }
-        }
-    }
-
-    // NOTE: THIS FUNCTION IS PARTIALLY GENERATED BY CLAUDE.AI
-    private void transposeBlock(float[] transposed, int[] axes, int[] oldDims, int[] oldStrides, int[] newStrides, 
-                            int startIdx, int endIdx) {
-        // Pre-calculated values for the innermost loop
-        int axis1 = axes[0], axis2 = axes[1], axis3 = axes[2], axis4 = axes[3];
-        
-        // Get the actual dimensions for bounds checking
-        int maxN = oldDims[0], maxC = oldDims[1], maxH = oldDims[2], maxW = oldDims[3];
-        
-        // Get a linear index and convert to 4D coordinates
-        for (int linearIdx = startIdx; linearIdx < endIdx; linearIdx++) {
-            // Convert linear index to NCHW coordinates
-            int remaining = linearIdx;
-            int n = remaining / oldStrides[0];
-            remaining %= oldStrides[0];
-            int c = remaining / oldStrides[1];
-            remaining %= oldStrides[1];  
-            int h = remaining / oldStrides[2];
-            int w = remaining % oldStrides[2];
-            
-            // Bounds check to prevent IndexOutOfBounds
-            if (n >= maxN || c >= maxC || h >= maxH || w >= maxW) {
-                continue; // Skip invalid coordinates
-            }
-            
-            // Original coordinates
-            int[] oldCoords = {n, c, h, w};
-            
-            // Map to new coordinates based on axis permutation
-            int newN = oldCoords[axis1];
-            int newC = oldCoords[axis2];
-            int newH = oldCoords[axis3]; 
-            int newW = oldCoords[axis4];
-            
-            // Calculate new index
-            int newIdx = newN * newStrides[0] + newC * newStrides[1] + 
-                        newH * newStrides[2] + newW * newStrides[3];
-            
-            // Bounds check for output array
-            if (newIdx >= 0 && newIdx < transposed.length) {
-                // Copy the value 
-                transposed[newIdx] = access(linearIdx);
-            }
-        }
+        return JMatrix.wrap(result, newLength, newChannels, newHeight, newWidth);
     }
 
     /**
@@ -1276,7 +777,7 @@ public class JMatrix {
      * Returns an exact copy of this JMatrix.
      */
     public JMatrix copy() {
-        JMatrix copy = JMatrix.wrap(matrix.clone(), length, channels, height, width);
+        JMatrix copy = JMatrix.wrap(matrix.clone(), shape());
         if (name != null) {
             copy.setName(name);
         }
@@ -1286,13 +787,14 @@ public class JMatrix {
      * Returns a new empty JMatrix with the same dimensions as this JMatrix.
      */
     public JMatrix zerosLike() {
-        return JMatrix.zeros(length, channels, height, width);
+        return JMatrix.zeros(shape());
     }
 
     /**
      * Clips all values in the JMatrix to a desired range.
      * @param min               The minimum allowed value, cast to a float.
      * @param max               The maximum allowed value, cast to a float.
+     * @return                  This JMatrix.
      */
     public JMatrix clip(double min, double max) {
         float fMin = (float)min;
@@ -1300,19 +802,20 @@ public class JMatrix {
         IntStream.range(0, matrix.length).parallel().forEach(i -> {
             matrix[i] = Math.max(fMin, Math.min(fMax, matrix[i]));
         });
-        return this; // For chaining
+        return this;
     }
 
     /**
      * Fills the JMatrix with a certain value.
      * @param fillValue             The value to assign to all items of the JMatrix.
+     * @return                      This JMatrix.
      */
     public JMatrix fill(double fillValue) {
         float valueF = (float)fillValue;
         IntStream.range(0, matrix.length).parallel().forEach(i -> {
             matrix[i] = valueF;
         });
-        return this; // For chaining
+        return this;
     }
 
     /**
@@ -1333,10 +836,11 @@ public class JMatrix {
 
         if (k != secondMatrix.length()) {
             throw new IllegalArgumentException(
-                "Matrix multiplication not possible for " +
-                "arrays with shape: (" + m + "," + k +
-                ") and (" + secondMatrix.length() + "," +
-                n + ")"
+                String.format(
+                    "Matrix multiplication not possible for " +
+                    "arrays with shape: (%d,%d) and (%d,%d)",
+                    m, k, secondMatrix.length(), n
+                )
             );
         }
         
@@ -1345,54 +849,14 @@ public class JMatrix {
         
         // Use simple algorithm for small matrices
         if (m < cutoffSize && n < cutoffSize && k < cutoffSize) {
-            return simpleMatmul(secondMatrix, scale, m, n, k);
+            float[] result = OptimizedMatmul.simpleMatmul(matrixA, matrixB, scale, m, n, k);
+            return JMatrix.wrap(result, m, n, 1, 1);
         }
 
         float[] result = OptimizedMatmul.matmul(matrixA, matrixB, m, n, k, scale, 
             BLOCK_SIZE_M, BLOCK_SIZE_N, BLOCK_SIZE_K, THREAD_POOL);
         
-        return JMatrix.wrap(result, m, secondMatrix.channels(), secondMatrix.height(), secondMatrix.width());
-    }
-    
-    /**
-     * Simple matrix multiplication for smaller matrices.
-     */
-    private JMatrix simpleMatmul(JMatrix secondMatrix, boolean scale, int m, int n, int k) {
-        float scaleFactor = (float)(1.0f / Math.sqrt(k));
-        float[] result = new float[m * n];
-        
-        float[] matrixA = matrix;
-        float[] matrixB = secondMatrix.getMatrix();
-        
-        IntStream.range(0, m).parallel().forEach(i -> {
-            for (int j = 0; j < n; j++) {
-                float sum = 0;
-                
-                int rowStartA = i * k;
-                int colJ = j;
-                    
-                // Unroll by 8 for small matrices
-                for (int kIndex = 0; kIndex < k - 7; kIndex += 8) {
-                    sum += matrixA[rowStartA + kIndex] * matrixB[kIndex * n + colJ]
-                             + matrixA[rowStartA + kIndex + 1] * matrixB[(kIndex + 1) * n + colJ]
-                             + matrixA[rowStartA + kIndex + 2] * matrixB[(kIndex + 2) * n + colJ]
-                             + matrixA[rowStartA + kIndex + 3] * matrixB[(kIndex + 3) * n + colJ]
-                             + matrixA[rowStartA + kIndex + 4] * matrixB[(kIndex + 4) * n + colJ]
-                             + matrixA[rowStartA + kIndex + 5] * matrixB[(kIndex + 5) * n + colJ]
-                             + matrixA[rowStartA + kIndex + 6] * matrixB[(kIndex + 6) * n + colJ]
-                             + matrixA[rowStartA + kIndex + 7] * matrixB[(kIndex + 7) * n + colJ];
-                }
-                    
-                // Handle remaining elements
-                for (int kIndex = k - (k % 8); kIndex < k; kIndex++) {
-                    sum += matrixA[rowStartA + kIndex] * matrixB[kIndex * n + colJ];
-                }
-
-                result[i * n + j] = scale ? sum * scaleFactor : sum;
-            }
-        });
-        
-        return JMatrix.wrap(result, m, secondMatrix.channels(), secondMatrix.height(), secondMatrix.width());
+        return JMatrix.wrap(result, m, n, 1, 1);
     }
 
     /**
@@ -1416,439 +880,72 @@ public class JMatrix {
         
         if (flatSpatialDim != secondMatrix.channels()) {
             throw new IllegalArgumentException(
-                "Batch matrix multiplication not possible for " +
-                "tensors with shapes: (" + batchSize + "," + inputChannels + "," + flatSpatialDim +
-                ") and (" + secondMatrix.length() + "," + outputChannels + "," + outFlatSpatialDim + ")"
+                String.format(
+                    "Batch matrix multiplication not possible for " +
+                    "tensors with shapes: (%d,%d,%d) and (%d,%d,%d)",
+                    batchSize, inputChannels, flatSpatialDim, 
+                    secondMatrix.length(), outputChannels, outFlatSpatialDim
+                )
             );
         }
 
-        float[] result = OptimizedMatmul.batchMatmul(matrix, secondMatrix.getMatrix(), length, 
-            inputChannels, outFlatSpatialDim, outputChannels, scale, BLOCK_SIZE_M, BLOCK_SIZE_N, BLOCK_SIZE_K, THREAD_POOL);
+        float[] result = OptimizedMatmul.batchMatmul(
+            matrix, secondMatrix.getMatrix(), 
+            length, inputChannels, outFlatSpatialDim, outputChannels, 
+            scale, 
+            BLOCK_SIZE_M, BLOCK_SIZE_N, BLOCK_SIZE_K, 
+            THREAD_POOL
+        );
 
-        return JMatrix.wrap(result, batchSize, channels, outFlatSpatialDim / secondMatrix.width(), secondMatrix.width());
+        return JMatrix.wrap(result, batchSize, channels, outFlatSpatialDim, 1);
     }
 
     /**
-     * Set every item x in the JMatrix to 1 / x.
+     * Take the reciprocal (1 / x) of every item in the JMatrix.
      * @return A new JMatrix with the changes applied.
      */
     public JMatrix reciprocal() {
-        int size = size();
-        float[] result = new float[size];
+        float[] result = new float[size()];
+        Arithmetic.broadcastReciprocal(matrix, result);
 
-        IntStream.range(0, size).parallel().forEach(i -> {
-            result[i] = (float)(1.0 / access(i));
-        });
-
-        return JMatrix.wrap(result, length, channels, height, width);
+        return JMatrix.wrap(result, shape());
     }
 
     /**
-     * Set every item x in the JMatrix to x ^ 1/2.
+     * Take the sqrt of every item in the JMatrix.
      * @return A new JMatrix with the changes applied.
      */
     public JMatrix sqrt() {
-        int size = size();
-        float[] result = new float[size];
-
-        IntStream.range(0, size).parallel().forEach(i -> {
-            result[i] = (float)(Math.sqrt(access(i)));
-        });
-
-        return JMatrix.wrap(result, length, channels, height, width);
+        float[] result = new float[size()];
+        Arithmetic.broadcastSqrt(matrix, result);
+       
+        return JMatrix.wrap(result, shape());
     }
- 
-    /**
-     * Perform broadcast subtraction with another JMatrix.
-     * @param secondMatrix              The JMatrix to subtract from this JMatrix.
-     * @throws IllegalArgumentException If the JMatrixes are incompatible. Full match and (1,C,1,1) match are supported.
-     * @return                          A new JMatrix representing the difference.
-     */
-    public JMatrix subtract(JMatrix secondMatrix) {
-        int size = size();
-
-        // Full element-wise subtraction
-        if (size == secondMatrix.size()) {
-            float[] result = new float[size];
-            IntStream.range(0, size).parallel().forEach(i -> {
-                result[i] = access(i) - secondMatrix.access(i);
-            });
-            return JMatrix.wrap(result, length, channels, height, width);
-        }
-
-        // Channel-wise broadcasting: (1, C, 1, 1) over (N, C, H, W)
-        if (secondMatrix.length() == 1 && secondMatrix.channels() == channels &&
-            secondMatrix.height() == 1 && secondMatrix.width() == 1) {
-
-            float[] result = new float[size];
-            int channelSize = height * width;
-
-            IntStream.range(0, length).parallel().forEach(n -> {
-                for (int c = 0; c < channels; c++) {
-                    float subtractor = secondMatrix.access(c); // one subtractor per channel
-                    int offset = n * channels * channelSize + c * channelSize;
-                    for (int i = 0; i < channelSize; i++) {
-                        result[offset + i] = access(offset + i) - subtractor;
-                    }
-                }
-            });
-
-            return JMatrix.wrap(result, length, channels, height, width);
-        }
-
-        // If matrices are not broadcastable
-        throw new IllegalArgumentException(
-            "Sizes " + size + " and " + secondMatrix.size() +
-            " cannot be broadcast together. Supported: full match or (1,channels,1,1)."
-        );
-    }
-
-        /**
-     * Perform broadcast subtraction with another JMatrix in place.
-     * @param secondMatrix              The JMatrix to subtract from this JMatrix.
-     * @throws IllegalArgumentException If the JMatrixes are incompatible. Full match and (1,C,1,1) match are supported.
-     */
-    public JMatrix subtractInPlace(JMatrix secondMatrix) {
-        int size = size();
-
-        // Full element-wise subtraction
-        if (size == secondMatrix.size()) {
-            IntStream.range(0, size).parallel().forEach(i -> {
-                matrix[i] = access(i) - secondMatrix.access(i);
-            });
-            return this; // For chaining
-        }
-
-        // Channel-wise broadcasting: (1, C, 1, 1) over (N, C, H, W)
-        if (secondMatrix.length() == 1 && secondMatrix.channels() == channels &&
-            secondMatrix.height() == 1 && secondMatrix.width() == 1) {
-
-            int channelSize = height * width;
-
-            IntStream.range(0, length).parallel().forEach(n -> {
-                for (int c = 0; c < channels; c++) {
-                    float subtractor = secondMatrix.access(c); // one subtractor per channel
-                    int offset = n * channels * channelSize + c * channelSize;
-                    for (int i = 0; i < channelSize; i++) {
-                        matrix[offset + i] = access(offset + i) - subtractor;
-                    }
-                }
-            });
-            return this; // For chaining
-        }
-
-        // If matrices are not broadcastable
-        throw new IllegalArgumentException(
-            "Sizes " + size + " and " + secondMatrix.size() +
-            " cannot be broadcast together. Supported: full match or (1,channels,1,1)."
-        );
-    }
-
 
     /**
-     * Perform broadcast addition with another JMatrix.
-     * @param secondMatrix              The JMatrix to add to this JMatrix.
-     * @throws IllegalArgumentException If the JMatrixes are incompatible. Full match and (1,C,1,1) match are supported.
-     * @return                          A new JMatrix representing the sum.
+     * Perform broadcast additino with another JMatrix.
+     * Full match, (N,1,1,1) broadcast, (1,C,1,1) broadcast, 
+     * and (N,C,1,1) broadcast are supported.
+     * @param secondMatrix The JMatrix to add to this JMatrix.
+     * @throws IllegalArgumentException If the JMatrixes are incompatible. 
+     * 
+     * @return A new JMatrix representing the sum.
      */
      public JMatrix add(JMatrix secondMatrix) {
-        int size = size();
-
-        // Full element-wise addition
-        if (size == secondMatrix.size()) {
-            float[] result = new float[size];
-            IntStream.range(0, size).parallel().forEach(i -> {
-                result[i] = access(i) + secondMatrix.access(i);
-            });
-            return JMatrix.wrap(result, length, channels, height, width);
-        }
-
-        // Channel-wise broadcasting: (1, C, 1, 1) over (N, C, H, W)
-        if (secondMatrix.length() == 1 && secondMatrix.channels() == channels &&
-            secondMatrix.height() == 1 && secondMatrix.width() == 1) {
-
-            float[] result = new float[size];
-            int channelSize = height * width;
-
-            IntStream.range(0, length).parallel().forEach(n -> {
-                for (int c = 0; c < channels; c++) {
-                    float adder = secondMatrix.access(c); // one adder per channel
-                    int offset = n * channels * channelSize + c * channelSize;
-                    for (int i = 0; i < channelSize; i++) {
-                        result[offset + i] = access(offset + i) + adder;
-                    }
-                }
-            });
-
-            return JMatrix.wrap(result, length, channels, height, width);
-        }
-
-        // If matrices are not broadcastable
-        throw new IllegalArgumentException(
-            "Sizes " + size + " and " + secondMatrix.size() +
-            " cannot be broadcast together. Supported: full match or (1,channels,1,1)."
-        );
+        return applyBroadcastArithmetic(secondMatrix, 'a', false);
     }
 
     /**
-     * Perform broadcast addition with another JMatrix in place.
-     * @param secondMatrix              The JMatrix to add to this JMatrix.
-     * @throws IllegalArgumentException If the JMatrixes are incompatible. Full match and (1,C,1,1) match are supported.
+     * Perform broadcast addition in-place with another JMatrix.
+     * Full match, (N,1,1,1) broadcast, (1,C,1,1) broadcast, 
+     * and (N,C,1,1) broadcast are supported.
+     * @param secondMatrix The JMatrix to add to this JMatrix.
+     * @throws IllegalArgumentException If the JMatrixes are incompatible. 
+     * 
+     * @return this JMatrix.
      */
     public JMatrix addInPlace(JMatrix secondMatrix) {
-        int size = size();
-
-        // Full element-wise subtraction
-        if (size == secondMatrix.size()) {
-            IntStream.range(0, size).parallel().forEach(i -> {
-                matrix[i] = access(i) + secondMatrix.access(i);
-            });
-            return this; // For chaining
-        }
-
-        // Channel-wise broadcasting: (1, C, 1, 1) over (N, C, H, W)
-        if (secondMatrix.length() == 1 && secondMatrix.channels() == channels &&
-            secondMatrix.height() == 1 && secondMatrix.width() == 1) {
-
-            int channelSize = height * width;
-
-            IntStream.range(0, length).parallel().forEach(n -> {
-                for (int c = 0; c < channels; c++) {
-                    float adder = secondMatrix.access(c); // one adder per channel
-                    int offset = n * channels * channelSize + c * channelSize;
-                    for (int i = 0; i < channelSize; i++) {
-                        matrix[offset + i] = access(offset + i) + adder;
-                    }
-                }
-            });
-            return this; // For chaining
-        }
-
-        // If matrices are not broadcastable
-        throw new IllegalArgumentException(
-            "Sizes " + size + " and " + secondMatrix.size() +
-            " cannot be broadcast together. Supported: full match or (1,channels,1,1)."
-        );
-    }
-    /**
-     * Perform broadcast multiplication with another JMatrix.
-     * @param secondMatrix The JMatrix to multiply with this JMatrix.
-     * @throws IllegalArgumentException If the JMatrixes are incompatible. Full match, (1,C,1,1) match, and (N,C,1,1) match are supported.
-     * @return A new JMatrix representing the product.
-     */
-    public JMatrix multiply(JMatrix secondMatrix) {
-        int size = size();
-        // Full element-wise multiplication
-        if (size == secondMatrix.size()) {
-            float[] result = new float[size];
-            IntStream.range(0, size).parallel().forEach(i -> {
-                result[i] = access(i) * secondMatrix.access(i);
-            });
-            return JMatrix.wrap(result, length, channels, height, width);
-        }
-        
-        // Channel-wise broadcasting: (1, C, 1, 1) over (N, C, H, W)
-        if (secondMatrix.length() == 1 && secondMatrix.channels() == channels &&
-            secondMatrix.height() == 1 && secondMatrix.width() == 1) {
-            float[] result = new float[size];
-            int channelSize = height * width;
-            IntStream.range(0, length).parallel().forEach(n -> {
-                for (int c = 0; c < channels; c++) {
-                    float multiplier = secondMatrix.access(c); // one multiplier per channel
-                    int offset = n * channels * channelSize + c * channelSize;
-                    for (int i = 0; i < channelSize; i++) {
-                        result[offset + i] = access(offset + i) * multiplier;
-                    }
-                }
-            });
-            return JMatrix.wrap(result, length, channels, height, width);
-        }
-        
-        // Sample-channel-wise broadcasting: (N, C, 1, 1) over (N, C, H, W)
-        // Each sample has its own set of channel multipliers
-        if (secondMatrix.length() == length && secondMatrix.channels() == channels &&
-            secondMatrix.height() == 1 && secondMatrix.width() == 1) {
-            float[] result = new float[size];
-            int channelSize = height * width;
-            IntStream.range(0, length).parallel().forEach(n -> {
-                for (int c = 0; c < channels; c++) {
-                    // Get multiplier for this specific sample and channel
-                    float multiplier = secondMatrix.access(n * channels + c);
-                    int offset = n * channels * channelSize + c * channelSize;
-                    for (int i = 0; i < channelSize; i++) {
-                        result[offset + i] = access(offset + i) * multiplier;
-                    }
-                }
-            });
-            return JMatrix.wrap(result, length, channels, height, width);
-        }
-        
-        // If matrices are not broadcastable
-        throw new IllegalArgumentException(
-            "Sizes " + size + " and " + secondMatrix.size() +
-            " cannot be broadcast together. Supported: full match, (1,C,1,1), or (N,C,1,1)."
-        );
-    }
-
-    /**
-     * Perform broadcast multiplication with another JMatrix in place.
-     * @param secondMatrix              The JMatrix to multiply this JMatrix with.
-     * @throws IllegalArgumentException If the JMatrixes are incompatible. Full match and (1,C,1,1) match are supported.
-     */
-    public JMatrix multiplyInPlace(JMatrix secondMatrix) {
-        int size = size();
-
-        // Full element-wise subtraction
-        if (size == secondMatrix.size()) {
-            IntStream.range(0, size).parallel().forEach(i -> {
-                matrix[i] = access(i) * secondMatrix.access(i);
-            });
-            return this; // For chaining
-        }
-
-        // Channel-wise broadcasting: (1, C, 1, 1) over (N, C, H, W)
-        if (secondMatrix.length() == 1 && secondMatrix.channels() == channels &&
-            secondMatrix.height() == 1 && secondMatrix.width() == 1) {
-
-            int channelSize = height * width;
-
-            IntStream.range(0, length).parallel().forEach(n -> {
-                for (int c = 0; c < channels; c++) {
-                    float multiplier = secondMatrix.access(c); // one multiplier per channel
-                    int offset = n * channels * channelSize + c * channelSize;
-                    for (int i = 0; i < channelSize; i++) {
-                        matrix[offset + i] = access(offset + i) * multiplier;
-                    }
-                }
-            });
-            return this; // For chaining
-        }
-
-        // If matrices are not broadcastable
-        throw new IllegalArgumentException(
-            "Sizes " + size + " and " + secondMatrix.size() +
-            " cannot be broadcast together. Supported: full match or (1,channels,1,1)."
-        );
-    }
-
-    /**
-     * Perform broadcast division with another JMatrix.
-     * @param secondMatrix              The JMatrix to divide this JMatrix by.
-     * @throws IllegalArgumentException If the JMatrixes are incompatible. Full match and (1,C,1,1) match are supported.
-     * @return                          A new JMatrix representing the dividend.
-     */
-    public JMatrix divide(JMatrix secondMatrix) {
-        int size = size();
-
-        // Full element-wise subtraction
-        if (size == secondMatrix.size()) {
-            float[] result = new float[size];
-            IntStream.range(0, size).parallel().forEach(i -> {
-                result[i] = access(i) / secondMatrix.access(i);
-            });
-            return JMatrix.wrap(result, length, channels, height, width);
-        }
-
-        // Channel-wise broadcasting: (1, C, 1, 1) over (N, C, H, W)
-        if (secondMatrix.length() == 1 && secondMatrix.channels() == channels &&
-            secondMatrix.height() == 1 && secondMatrix.width() == 1) {
-
-            float[] result = new float[size];
-            int channelSize = height * width;
-
-            IntStream.range(0, length).parallel().forEach(n -> {
-                for (int c = 0; c < channels; c++) {
-                    float divisor = secondMatrix.access(c); // one divisor per channel
-                    int offset = n * channels * channelSize + c * channelSize;
-                    for (int i = 0; i < channelSize; i++) {
-                        result[offset + i] = access(offset + i) / divisor;
-                    }
-                }
-            });
-
-            return JMatrix.wrap(result, length, channels, height, width);
-        }
-
-        // If matrices are not broadcastable
-        throw new IllegalArgumentException(
-            "Sizes " + size + " and " + secondMatrix.size() +
-            " cannot be broadcast together. Supported: full match or (1,channels,1,1)."
-        );
-    }
-
-    /**
-     * Perform broadcast division with another JMatrix in place.
-     * @param secondMatrix              The JMatrix to divide this JMatrix by.
-     * @throws IllegalArgumentException If the JMatrixes are incompatible. Full match and (1,C,1,1) match are supported.
-     */
-    public JMatrix divideInPlace(JMatrix secondMatrix) {
-        int size = size();
-
-        // Full element-wise subtraction
-        if (size == secondMatrix.size()) {
-            IntStream.range(0, size).parallel().forEach(i -> {
-                matrix[i] = access(i) / secondMatrix.access(i);
-            });
-            return this; // For chaining
-        }
-
-        // Channel-wise broadcasting: (1, C, 1, 1) over (N, C, H, W)
-        if (secondMatrix.length() == 1 && secondMatrix.channels() == channels &&
-            secondMatrix.height() == 1 && secondMatrix.width() == 1) {
-
-            int channelSize = height * width;
-
-            IntStream.range(0, length).parallel().forEach(n -> {
-                for (int c = 0; c < channels; c++) {
-                    float divisor = secondMatrix.access(c); // one divisor per channel
-                    int offset = n * channels * channelSize + c * channelSize;
-                    for (int i = 0; i < channelSize; i++) {
-                        matrix[offset + i] = access(offset + i) / divisor;
-                    }
-                }
-            });
-            return this; // For chaining
-        }
-
-        // If matrices are not broadcastable
-        throw new IllegalArgumentException(
-            "Sizes " + size + " and " + secondMatrix.size() +
-            " cannot be broadcast together. Supported: full match or (1,channels,1,1)."
-        );
-    }
-
-    /**
-     * Subtract a scalar from this JMatrix.
-     * @param scalar              The scalar value to subtract from this JMatrix.
-     * @return                    A new JMatrix with the changes applied.
-     */
-    public JMatrix subtract(double scalar) {
-        int size = size();
-        float[] result = new float[size];
-
-        float fScalar = (float)scalar;
-
-        IntStream.range(0, size).parallel().forEach(i -> {
-            result[i] = access(i) - fScalar;
-        });
-
-        return JMatrix.wrap(result, length, channels, height, width);
-    }
-
-    /**
-     * Subtract a scalar from this JMatrix in place.
-     * @param scalar              The scalar value to subtract from this JMatrix.
-     */
-    public JMatrix subtractInPlace(double scalar) {
-        int size = size();
-
-        float fScalar = (float)scalar;
-
-        IntStream.range(0, size).parallel().forEach(i -> {
-            matrix[i] = access(i) - fScalar;
-        });
-
-        return this; // For chaining
+        return applyBroadcastArithmetic(secondMatrix, 'a', true);
     }
 
     /**
@@ -1857,97 +954,254 @@ public class JMatrix {
      * @return                    A new JMatrix with the changes applied.
      */
     public JMatrix add(double scalar) {
-        int size = size();
-        float[] result = new float[size];
+        float[] result = new float[size()];
+        Arithmetic.scalarAdd(matrix, (float)scalar, result);
 
-        float fScalar = (float)scalar;
-
-        IntStream.range(0, size).parallel().forEach(i -> {
-            result[i] = access(i) + fScalar;
-        });
-
-        return JMatrix.wrap(result, length, channels, height, width);
+        return JMatrix.wrap(result, shape());
     }
 
     /**
      * Add a scalar to this JMatrix in place.
      * @param scalar              The scalar value to add to this JMatrix.
+     * @return                    this JMatrix.
      */
     public JMatrix addInPlace(double scalar) {
-        int size = size();
-
-        float fScalar = (float)scalar;
-
-        IntStream.range(0, size).parallel().forEach(i -> {
-            matrix[i] = access(i) + fScalar;
-        });
-
-        return this; // For chaining
+        // Write results onto matrix
+        Arithmetic.scalarAdd(matrix, (float)scalar, matrix);
+        return this;
     }
+
+
+    /**
+     * Perform broadcast subtraction with another JMatrix.
+     * Full match, (N,1,1,1) broadcast, (1,C,1,1) broadcast, 
+     * and (N,C,1,1) broadcast are supported.
+     * @param secondMatrix The JMatrix to subtract from this JMatrix.
+     * @throws IllegalArgumentException If the JMatrixes are incompatible. 
+     * 
+     * @return A new JMatrix representing the difference.
+     */
+    public JMatrix subtract(JMatrix secondMatrix) {
+        return applyBroadcastArithmetic(secondMatrix, 's', false);
+
+    }
+
+    /**
+     * Perform broadcast subtraction in-place with another JMatrix.
+     * Full match, (N,1,1,1) broadcast, (1,C,1,1) broadcast, 
+     * and (N,C,1,1) broadcast are supported.
+     * @param secondMatrix The JMatrix to subtract from this JMatrix.
+     * @throws IllegalArgumentException If the JMatrixes are incompatible. 
+     * 
+     * @return this JMatrix.
+     */
+    public JMatrix subtractInPlace(JMatrix secondMatrix) {
+        return applyBroadcastArithmetic(secondMatrix, 's', true);
+    }
+
+    /**
+     * Subtract a scalar from this JMatrix.
+     * @param scalar              The scalar value to subtract from this JMatrix.
+     * @return                    A new JMatrix with the changes applied.
+     */
+    public JMatrix subtract(double scalar) {
+        float[] result = new float[size()];
+        Arithmetic.scalarSubtract(matrix, (float)scalar, result);
+
+        return JMatrix.wrap(result, shape());
+    }
+
+    /**
+     * Subtract a scalar from this JMatrix in place.
+     * @param scalar              The scalar value to subtract from this JMatrix.
+     * @return                    this JMatrix.
+     */
+    public JMatrix subtractInPlace(double scalar) {
+        // Write results onto matrix
+        Arithmetic.scalarSubtract(matrix, (float)scalar, matrix);
+        return this;
+    }
+
+    /**
+     * Perform broadcast multiplication with another JMatrix.
+     * Full match, (N,1,1,1) broadcast, (1,C,1,1) broadcast, 
+     * and (N,C,1,1) broadcast are supported.
+     * @param secondMatrix The JMatrix to multiply with this JMatrix.
+     * @throws IllegalArgumentException If the JMatrixes are incompatible. 
+     * 
+     * @return A new JMatrix representing the product.
+     */
+    public JMatrix multiply(JMatrix secondMatrix) {
+        return applyBroadcastArithmetic(secondMatrix, 'm', false);
+    }
+
+    /**
+     * Perform broadcast multiplication in-place with another JMatrix.
+     * Full match, (N,1,1,1) broadcast, (1,C,1,1) broadcast, 
+     * and (N,C,1,1) broadcast are supported.
+     * @param secondMatrix The JMatrix to multiply with this JMatrix.
+     * @throws IllegalArgumentException If the JMatrixes are incompatible. 
+     * 
+     * @return this JMatrix.
+     */
+    public JMatrix multiplyInPlace(JMatrix secondMatrix) {
+        return applyBroadcastArithmetic(secondMatrix, 'm', true);
+    }
+
     /**
      * Multiply a scalar with this JMatrix.
      * @param scalar              The scalar value to muliply with this JMatrix.
      * @return                    A new JMatrix with the changes applied.
      */
     public JMatrix multiply(double scalar) {
-        int size = size();
-        float[] result = new float[size];
+        float[] result = new float[size()];
+        Arithmetic.scalarMultiply(matrix, (float)scalar, result);
 
-        float fScalar = (float)scalar;
-
-        IntStream.range(0, size).parallel().forEach(i -> {
-            result[i] = access(i) * fScalar;
-        });
-
-        return JMatrix.wrap(result, length, channels, height, width);
+        return JMatrix.wrap(result, shape());
     }
 
     /**
      * Multiply a scalar with this JMatrix in place.
-     * @param scalar              The scalar value to subtract from this JMatrix.
+     * @param scalar              The scalar value to multiply with this JMatrix.
+     * @return                    this JMatrix.
      */
     public JMatrix multiplyInPlace(double scalar) {
-        int size = size();
-
-        float fScalar = (float)scalar;
-
-        IntStream.range(0, size).parallel().forEach(i -> {
-            matrix[i] = access(i) * fScalar;
-        });
-        return this; // For chaining
+        // Write results onto matrix
+        Arithmetic.scalarMultiply(matrix, (float)scalar, matrix);
+        return this;
     }
 
-     /**
+    /**
+     * Perform broadcast division with another JMatrix.
+     * Full match, (N,1,1,1) broadcast, (1,C,1,1) broadcast, 
+     * and (N,C,1,1) broadcast are supported.
+     * @param secondMatrix The JMatrix to divide this JMatrix by.
+     * @throws IllegalArgumentException If the JMatrixes are incompatible. 
+     * 
+     * @return A new JMatrix representing the quotient.
+     */
+    public JMatrix divide(JMatrix secondMatrix) {
+        return applyBroadcastArithmetic(secondMatrix, 'd', false);
+    }
+
+    /**
+     * Perform broadcast division in-place with another JMatrix.
+     * Full match, (N,1,1,1) broadcast, (1,C,1,1) broadcast, 
+     * and (N,C,1,1) broadcast are supported.
+     * @param secondMatrix The JMatrix to divide this JMatrix by.
+     * @throws IllegalArgumentException If the JMatrixes are incompatible. 
+     * 
+     * @return this JMatrix.
+     */
+    public JMatrix divideInPlace(JMatrix secondMatrix) {
+        return applyBroadcastArithmetic(secondMatrix, 'd', true);
+    }
+
+    /**
      * Divide this JMatrix by a scalar.
      * @param scalar              The scalar value to divide this JMatrix by.
      * @return                    A new JMatrix with the changes applied.
      */
     public JMatrix divide(double scalar) {
-        int size = size();
-        float[] result = new float[size];
+        float[] result = new float[size()];
+        Arithmetic.scalarDivide(matrix, (float)scalar, result);
 
-        float fScalar = (float)scalar;
-
-        IntStream.range(0, size).parallel().forEach(i -> {
-            result[i] = access(i) / fScalar;
-        });
-
-        return JMatrix.wrap(result, length, channels, height, width);
+        return JMatrix.wrap(result, shape());
     }
 
     /**
      * Divide this matrix by a scalar in place.
      * @param scalar              The scalar value to divide this JMatrix by.
+     * @return                    this JMatrix.
      */
     public JMatrix divideInPlace(double scalar) {
+        // Write results onto matrix
+        Arithmetic.scalarMultiply(matrix, (float)scalar, matrix);
+        return this;
+    }
+
+
+    private JMatrix applyBroadcastArithmetic(JMatrix secondMatrix, char type, boolean inPlace) {
         int size = size();
 
-        float fScalar = (float)scalar;
-
-        IntStream.range(0, size).parallel().forEach(i -> {
-            matrix[i] = access(i) / fScalar;
-        });
+        float[] result = (inPlace) ? matrix : new float[size];
+        float[] broadcast = secondMatrix.getMatrix();
         
-        return this; // For chaining
+        int[] broadcastDims;
+        // Full element-wise broadcast
+        if (size == secondMatrix.size()) {
+            broadcastDims = new int[]{0, 1, 2, 3};
+        }
+        //Batch-wise broadcasting: (N, 1, 1, 1) over (N, C, H, W)
+        else if (secondMatrix.length() == length && secondMatrix.channels() == 1 &&
+            secondMatrix.height() == 1 && secondMatrix.width() == 1) {
+            broadcastDims = new int[]{0};
+        } 
+        // Channel-wise broadcasting: (1, C, 1, 1) over (N, C, H, W)
+        else if (secondMatrix.length() == 1 && secondMatrix.channels() == channels &&
+            secondMatrix.height() == 1 && secondMatrix.width() == 1) {
+            broadcastDims = new int[]{1};
+        }
+        // Item channel-wise broadcasting: (N, C, 1, 1) over (N, C, H, W)
+        else if (secondMatrix.length() == length && secondMatrix.channels() == channels &&
+            secondMatrix.height() == 1 && secondMatrix.width() == 1) {
+            broadcastDims = new int[]{0, 1};
+        } 
+        // If matrices are not broadcastable
+        else {
+            throw new IllegalArgumentException(
+            "Shapes " + shapeAsString() + 
+            " and " + secondMatrix.shapeAsString() +
+            " cannot be broadcast together. Supported:" + 
+            "full match, (N,1,1,1), (1,C,1,1), or (N,C,1,1)."
+        );
+        }
+        switch (type) {
+            case 'a':
+                Arithmetic.broadcastAdd(
+                    matrix, 
+                    broadcast, 
+                    shape(), 
+                    result, 
+                    broadcastDims
+                );
+                break;
+            case 's':
+                Arithmetic.broadcastSubtract(
+                    matrix, 
+                    broadcast, 
+                    shape(), 
+                    result, 
+                    broadcastDims
+                );
+                break;
+            case 'm':
+                Arithmetic.broadcastMultiply(
+                    matrix, 
+                    broadcast, 
+                    shape(), 
+                    result, 
+                    broadcastDims
+                );
+                break;
+            case 'd':
+                Arithmetic.broadcastDivide(
+                    matrix, 
+                    broadcast, 
+                    shape(), 
+                    result, 
+                    broadcastDims
+                );
+                break;
+            default:
+                throw new IllegalArgumentException(
+                    "Unknown operator: " + type + 
+                    ". Supported: 'a' (addition)," +
+                    " 's' (subtraction), 'm' (multiplication) " + 
+                    " 'd' (division)"
+                );
+        }
+
+        return JMatrix.wrap(result, shape());
     }
 }

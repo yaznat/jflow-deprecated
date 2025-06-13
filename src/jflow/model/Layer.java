@@ -190,7 +190,7 @@ public abstract class Layer {
                 // Print statistics for the entry
                 System.out.print(" \033[38;2;222;197;15m|\033[0m \033[38;2;255;165;0mshape:\033[0m \033[37m" + data.shapeAsString() + "\033[0m"); // shape
                 System.out.print(" \033[38;2;222;197;15m|\033[0m \033[38;2;255;165;0mabsmax:\033[0m \033[37m" + data.absMax() + "\033[0m"); // absmax
-                System.out.print(" \033[38;2;222;197;15m|\033[0m \033[38;2;255;165;0mmean:\033[0m \033[37m" + data.mean() + "\033[0m"); // mean
+                System.out.print(" \033[38;2;222;197;15m|\033[0m \033[38;2;255;165;0mabsmean:\033[0m \033[37m" + data.absMean() + "\033[0m"); // absmean
                 System.out.print(" \033[38;2;222;197;15m|\033[0m \033[38;2;255;165;0mL1:\033[0m \033[37m" + data.l1Norm() + "\033[0m\n"); // L1 norm
             }
             String closer = "\033[94m╰─────────────────────";

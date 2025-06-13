@@ -35,7 +35,7 @@ public class Image {
         this.channels = 1;
         this.loadedFromCSV = true;
         int size = (int)Math.pow(image.length, 0.5);
-        originalImage = new JMatrix(1, 1, size, size);
+        originalImage = JMatrix.zeros(1, 1, size, size);
 
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
@@ -183,7 +183,7 @@ public class Image {
     private JMatrix loadGrayscaleImage(BufferedImage img) {
         int width = img.getWidth();
         int height = img.getHeight();
-        JMatrix grayscaleArray = new JMatrix(1, 1, height, width); 
+        JMatrix grayscaleArray = JMatrix.zeros(1, 1, height, width); 
 
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
@@ -199,14 +199,14 @@ public class Image {
     private JMatrix loadRGBImage(BufferedImage img) {
         int width = img.getWidth();
         int height = img.getHeight();
-        JMatrix rgbArray = new JMatrix(1, 3, height, width); 
+        JMatrix rgbArray = JMatrix.zeros(1, 3, height, width); 
 
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 int argb = img.getRGB(x, y);
                 rgbArray.set(0, 0, y, x, (argb >> 16) & 0xFF); // Red
-                rgbArray.set(0, 0, y, x, (argb >> 8)  & 0xFF); // Green
-                rgbArray.set(0, 0, y, x, (argb)       & 0xFF); // Blue
+                rgbArray.set(0, 1, y, x, (argb >> 8)  & 0xFF); // Green
+                rgbArray.set(0, 2, y, x, (argb)       & 0xFF); // Blue
             }
         }
         return rgbArray;

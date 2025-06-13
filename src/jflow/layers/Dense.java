@@ -127,7 +127,7 @@ public class Dense extends TrainableLayer {
         }
         dWeights.setMatrix(gradient.matmul(lastInput.transpose2D(), true).getMatrix()); // avoid reassigning reference
         if (useBias) {
-            dBiases.setMatrix(gradient.sum0(false));
+            dBiases.setMatrix(gradient.sum(0).getMatrix());
         }
 
         // Save memory
@@ -174,9 +174,10 @@ public class Dense extends TrainableLayer {
     // Adaptively clip with frobenius norm
     private void adaptiveGradientClip(JMatrix weights, JMatrix biases, JMatrix dWeights, JMatrix dBiases, double epsilon) {
         // Clip weights
-        double weightNorm = weights.frobeniusNorm();
-        double gradWeightNorm = dWeights.frobeniusNorm();
-        double maxWeightNorm = Math.max(gradWeightNorm, epsilon * weightNorm);
+        // double weightNorm = weights.frobeniusNorm();
+        double gradWeightNorm = dWeights.l2Norm();
+        // double maxWeightNorm = Math.max(gradWeightNorm, epsilon * weightNorm);
+        double maxWeightNorm = 10.0;
         
         if (gradWeightNorm > maxWeightNorm) {
             double scaleWeight = maxWeightNorm / gradWeightNorm;
@@ -185,8 +186,8 @@ public class Dense extends TrainableLayer {
         
         // Clip biases
         if (useBias) {
-            double biasNorm = biases.frobeniusNorm();
-            double gradBiasNorm = dBiases.frobeniusNorm();
+            double biasNorm = biases.l2Norm();
+            double gradBiasNorm = dBiases.l2Norm();
             double maxBiasNorm = Math.max(gradBiasNorm, epsilon * biasNorm);
             
             if (gradBiasNorm > maxBiasNorm) {
