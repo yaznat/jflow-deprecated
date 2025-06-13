@@ -54,6 +54,7 @@ public class JMatrix {
 
     /**
      * Initialize a new JMatrix with default values of zero.
+     * JMatrix is in (N, C, H, W) format.
      * @param length                The batch dimension.
      * @param channels              The channel dimension.
      * @param height                The height dimension.
@@ -65,6 +66,7 @@ public class JMatrix {
 
     /**
      * Initialize a new JMatrix with default values of zero.
+     * JMatrix is in (N, C, H, W) format.
      * @param shape                The desired shape (N, channels, height, width).
      * @throws IllegalArgumentException if the length of shape is not four.
      */
@@ -77,6 +79,7 @@ public class JMatrix {
 
     /**
      * Initialize a new JMatrix with default values of one.
+     * JMatrix is in (N, C, H, W) format.
      * @param length                The batch dimension.
      * @param channels              The channel dimension.
      * @param height                The height dimension.
@@ -88,6 +91,7 @@ public class JMatrix {
 
     /**
      * Initialize a new JMatrix with default values of one.
+     * JMatrix is in (N, C, H, W) format.
      * @param shape                The desired shape (N, channels, height, width).
      * @throws IllegalArgumentException if the length of shape is not four.
      */
@@ -100,6 +104,7 @@ public class JMatrix {
 
     /**
      * Wrap an array in a new JMatrix.
+     * JMatrix is in (N, C, H, W) format.
      * @param values                The values to wrap in this JMatrix.
      * @param length                The batch dimension.
      * @param channels              The channel dimension.
@@ -123,6 +128,7 @@ public class JMatrix {
 
     /**
      * Wrap an array in a new JMatrix.
+     * JMatrix is in (N, C, H, W) format.
      * @param values                The values to wrap in this JMatrix.
      * @param shape                 The desired shape (N, channels, height, width).
      * @throws IllegalArgumentException if the length of shape is not four, 
@@ -1007,9 +1013,10 @@ public class JMatrix {
     }
 
     /**
-     * Rotate the JMatrix 90 degrees clockwise for 2D use cases.
-     * Swaps the batch dimension (N) with the item dimension (C * H * W).
-     * @return A new JMatrix with the changes applied.
+     * Transpose a 2D matrix, swapping the batch dimension (N)
+     * with the feature dimension (C * H * W).
+     *
+     * @return A new JMatrix with shape (C * H * W, N, 1, 1)
      */
     public JMatrix transpose2D() {
         int oldHeight = length;
@@ -1032,8 +1039,13 @@ public class JMatrix {
     }
 
     /**
-     * Rotate every height * width * channels item by 90 degrees for 3D use cases.
-     * @return A new JMatrix with the changes applied.
+     * Matrix tranpose for 3D use cases.
+     * Transposes each (C, H * W) item in the batch into (H * W, C).
+     * 
+     * This is a batch-wise matrix transpose: for each item in the batch,
+     * it swaps the feature and spatial axes. Commonly used before batchMatmul().
+     *
+     * @return A new JMatrix with shape (N, H * W, C, 1)
      */
     public JMatrix transpose3D() {
         int numBatches = length;     
@@ -1065,8 +1077,8 @@ public class JMatrix {
     }
 
     /**
-     * Rotate every height * width element by 90 degrees.
-     * @return A new JMatrix with the changes applied.
+     * Matrix transpose for 4D use cases. Transposes every (H, W) item to (W, H).
+     * @return A new JMatrix with shape (N, C, W, H)
      */
     public JMatrix transpose4D() {
         int newHeight = width;
@@ -1094,7 +1106,7 @@ public class JMatrix {
     }
 
     /**
-     * Transpose the matrix by rearranging dimension according to a particular order.
+     * Transpose the matrix by rearranging dimensions according to a particular order.
      * @param axis1 The dimension to use as the first dimension (0=N, 1=C, 2=H, 3=W)
      * @param axis2 The dimension to use as the second dimension (0=N, 1=C, 2=H, 3=W)
      * @param axis3 The dimension to use as the third dimension (0=N, 1=C, 2=H, 3=W)
