@@ -184,7 +184,7 @@ class Statistics {
         int[] strides = new int[]{
             shape[1] * shape[2] * shape[3], 
             shape[2] * shape[3], 
-            shape[4], 
+            shape[3], 
             1
         };
     
@@ -234,7 +234,7 @@ class Statistics {
                 int[] strides = new int[]{
                     shape[1] * shape[2] * shape[3], 
                     shape[2] * shape[3], 
-                    shape[4], 
+                    shape[3], 
                     1
                 };
                 
@@ -297,7 +297,7 @@ class Statistics {
                 int[] strides = new int[]{
                     shape[1] * shape[2] * shape[3], 
                     shape[2] * shape[3], 
-                    shape[4], 
+                    shape[3], 
                     1
                 };
 
