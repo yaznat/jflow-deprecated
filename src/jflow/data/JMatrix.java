@@ -16,13 +16,15 @@ public class JMatrix {
      * size will be handled with simpleMatmul()
      */ 
     private static int cutoffSize = -1;
-    // Cache-blocking sizes tuned for modern CPUs
-    private static final int BLOCK_SIZE_M = 128;
-    private static final int BLOCK_SIZE_N = 128;
-    private static final int BLOCK_SIZE_K = 512;
+    // // Cache-blocking sizes tuned for modern CPUs
+    // private static final int BLOCK_SIZE_M = 128;
+    // private static final int BLOCK_SIZE_N = 128;
+    // private static final int BLOCK_SIZE_K = 512;
 
-    
-
+    // Tuned for m4 max
+    private static final int BLOCK_SIZE_M = 64;
+    private static final int BLOCK_SIZE_N = 240;
+    private static final int BLOCK_SIZE_K = 384;
 
     private static final ForkJoinPool THREAD_POOL = new ForkJoinPool(
             Math.max(1, Runtime.getRuntime().availableProcessors() * 2), 
@@ -1201,7 +1203,9 @@ public class JMatrix {
                     " 'd' (division)"
                 );
         }
-
+        if (inPlace) {
+            return this;
+        }
         return JMatrix.wrap(result, shape());
     }
 }
