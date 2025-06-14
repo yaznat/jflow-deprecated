@@ -79,7 +79,7 @@ public class Image {
 
     public JMatrix getData() {
         loadingSequence();
-        JMatrix copyReference = originalImage;
+        JMatrix copyReference = xData;
         if (lowMemoryMode) {
             unload();
         }
