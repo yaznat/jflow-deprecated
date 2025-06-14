@@ -67,7 +67,7 @@ public class SGD extends Optimizer {
                     
                     if (useNesterov) {
                         // Nesterov accelerated gradient
-                        updates[i] = weightGradients.multiply(learningRate).addInPlace(velocity.multiply(momentum));
+                        updates[i] = velocity.multiply(momentum).addInPlace(weightGradients.multiply(learningRate));
                     } else {
                         // Standard momentum
                         updates[i] = velocity;
