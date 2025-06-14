@@ -16,15 +16,10 @@ public class JMatrix {
      * size will be handled with simpleMatmul()
      */ 
     private static int cutoffSize = -1;
-    // // Cache-blocking sizes tuned for modern CPUs
-    // private static final int BLOCK_SIZE_M = 128;
-    // private static final int BLOCK_SIZE_N = 128;
-    // private static final int BLOCK_SIZE_K = 512;
-
-    // Tuned for m4 max
-    private static final int BLOCK_SIZE_M = 64;
-    private static final int BLOCK_SIZE_N = 240;
-    private static final int BLOCK_SIZE_K = 384;
+    // Cache-blocking sizes tuned for modern CPUs
+    private static final int BLOCK_SIZE_M = 128;
+    private static final int BLOCK_SIZE_N = 128;
+    private static final int BLOCK_SIZE_K = 512;
 
     private static final ForkJoinPool THREAD_POOL = new ForkJoinPool(
             Math.max(1, Runtime.getRuntime().availableProcessors() * 2), 
@@ -216,7 +211,7 @@ public class JMatrix {
      * @exception IllegalArgumentException      if the number of items 
      * in the new array doesn't match the original.
      */
-    public void setMatrix(float[] matrix) {
+    public JMatrix setMatrix(float[] matrix) {
         if (matrix.length != size()) {
             throw new IllegalArgumentException(
                 "Sizes must match. Original: " 
@@ -224,6 +219,7 @@ public class JMatrix {
             );
         }
         this.matrix = matrix;
+        return this;
     }
 
     /**
@@ -1118,7 +1114,7 @@ public class JMatrix {
      */
     public JMatrix divideInPlace(double scalar) {
         // Write results onto matrix
-        Arithmetic.scalarMultiply(matrix, (float)scalar, matrix);
+        Arithmetic.scalarDivide(matrix, (float)scalar, matrix);
         return this;
     }
 
