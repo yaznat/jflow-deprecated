@@ -13,6 +13,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.stream.IntStream;
 
 import jflow.data.*;
@@ -20,8 +21,10 @@ import jflow.layers.Dense;
 import jflow.layers.Embedding;
 import jflow.layers.Sigmoid;
 import jflow.layers.templates.TrainableLayer;
+import jflow.utils.AnsiCodes;
 import jflow.utils.Callbacks;
 import jflow.utils.Metrics;
+import jflow.utils.Metric;
 
 
 
@@ -37,16 +40,6 @@ public class Sequential{
     private int[] inputShape;
     private HashMap<String, JMatrix[]> layerGradients = new HashMap<>();
     private HashMap<String, Integer> layerCounts = new HashMap<>();
-
-    private final String TEAL = "\033[38;2;0;153;153;1m";
-    private final String YELLOW = "\033[38;2;222;197;15m";
-    private final String ORANGE = "\033[38;2;255;165;1m";
-    private final String BLUE = "\033[94m";
-    private final String WHITE = "\033[37m";
-    private final String GREEN = "\033[38;2;0;204;0m";
-    private final String RED = "\033[38;2;255;0;0m";
-    private final String BOLD = "\033[1m";
-    private final String RESET = "\033[0m";
 
     /**
      * Initializes an empty Sequential model.
@@ -87,6 +80,15 @@ public class Sequential{
             add(l);
         }
     }
+
+    /**
+     * Returns the name of this Sequential model. If not set, defaults to
+     * "sequential_X", where X is the model's initialization number.
+     */
+    public String name() {
+        return (name == null) ? "sequential_" + modelNum : name;
+    }
+
     /**
      * Add a layer to the model.
      * @param layer A JFlow Layer.
@@ -315,8 +317,8 @@ public class Sequential{
      * Train the model.
      * @param loader                A Dataloader containing train images.
      * @param epochs                The number of epochs to train.
-     * @param savePath              The path for saving checkpoints. Either:
-     *                              <ul> <li> saves every epoch that validation   
+     * @param checkpoint            A model checkpoint denoting the save path and the 
+     * metric to save best.   
      */
     public void train(Dataloader loader, int epochs, ModelCheckpoint checkpoint) {
         runTraining(loader, epochs, checkpoint);
@@ -328,21 +330,13 @@ public class Sequential{
         if (optimizer == null) {
             setOptimizer(new SGD(0.01)); // Simplest possible optimizer
         }
-        // Store values for metric tracking
+        // Store values to track improvement
         double prevTrainAccuracy = 0;
-        double bestTrainAccuracy = 0;
-
-        double bestTrainLoss = Double.POSITIVE_INFINITY;
-
         double prevValAccuracy = 0;
-        double bestValAccuracy = 0;
-
         double prevValLoss = Double.POSITIVE_INFINITY;
-        double bestValLoss = Double.POSITIVE_INFINITY;
 
         // Print training header
-        String name = (this.name == null) ? "sequential_" + modelNum : this.name;
-        Callbacks.printTrainingHeader(name);
+        Callbacks.printTrainingHeader(this);
         // Prepare validation data
         JMatrix valData = null;
         int[] valLabels = null;
@@ -364,11 +358,8 @@ public class Sequential{
             long startTime = System.nanoTime();
             double totalLoss = 0;
             for (int batch = 0; batch < numBatches; batch++) {
-                JMatrix xBatch = null;
-                int[] yBatch = null;
-
-                xBatch = loader.getBatchFlat(batch);
-                yBatch = loader.getBatchLabels(batch);
+                JMatrix xBatch = loader.getBatchFlat(batch);
+                int[] yBatch = loader.getBatchLabels(batch);
 
                 forward(xBatch, true);
 
@@ -394,7 +385,6 @@ public class Sequential{
                 int[] predictions = getPredictions(output);
 
                 accuracy += Metrics.getAccuracy(predictions, yBatch);
-
                 totalLoss += crossEntropyLoss(output, yBatch);
 
                 long batchTime = System.nanoTime();
@@ -410,143 +400,68 @@ public class Sequential{
             }
             Double trainLoss = totalLoss / numBatches;
 
-            // Report train accuracy
-            String report = BLUE + "    Training Accuracy: " + RESET;
-            // Convert to percentage
+            // Gather metric values to report for this epoch
+            List<Metric> metricReport = new ArrayList<>();
+
+            // Add train accuracy
             double trainAccuracy = accuracy / loader.numBatches();
-            String trainPercentage = accuracyToPercentage(trainAccuracy);
-
-            // Warn if performance declines with RED
-            if (trainAccuracy > prevTrainAccuracy) {
-                report += GREEN;
-            } else {
-                report += RED;
-            }
+            metricReport.add(new Metric(
+                "Training Accuracy", 
+                trainAccuracy, 
+                true, 
+                trainAccuracy > prevTrainAccuracy 
+                )
+            );
             prevTrainAccuracy = trainAccuracy;
-
-            report += trainPercentage + RESET;
 
             double valLoss = Double.POSITIVE_INFINITY;
             double valAccuracy = 0;
             if (useValSet) {
-                // Report validation accuracy
-                report += BLUE + "\n    Validation Accuracy: " + RESET;
-                // Test on the val set
+                // Test on the validation set
                 int[] valPredictions = predict(valData);
-                valAccuracy = Metrics.getAccuracy(valPredictions, valLabels);
-                String valPercentage = accuracyToPercentage(valAccuracy);
 
-                // Warn if performance declines with RED
-                if (valAccuracy > prevValAccuracy) {
-                    report += GREEN;
-                } else {
-                    report += RED;
-                }
+                // Add validation accuracy
+                valAccuracy = Metrics.getAccuracy(valPredictions, valLabels);
+
+                metricReport.add(new Metric(
+                    "Validation Accuracy", 
+                    valAccuracy, 
+                    true, 
+                    valAccuracy > prevValAccuracy 
+                    )
+                );
                 prevValAccuracy = valAccuracy;
 
-                report += valPercentage + RESET;
-
-                // Report validation loss
-                report += BLUE + "\n    Validation Loss: ";
+                // Add validation loss
                 valLoss = crossEntropyLoss(layers.getLast().getOutput(), valLabels);
 
-                // Warn if performance declines with RED
-                if (valLoss < prevValLoss) {
-                    report += GREEN;
-                } else {
-                    report += RED;
-                }
+                metricReport.add(new Metric(
+                    "Validation Loss", 
+                    valLoss, 
+                    false, 
+                    valLoss < prevValLoss 
+                    )
+                );
                 prevValLoss = valLoss;
-
-                report += capDouble(valLoss, 8) + RESET;
             }
-            System.out.println("\n" + report);
-            if (checkpoint == null) {
-                System.out.println("");
-            } else {
-                String reportName = null;
-                String val1 = null;
-                String val2 = null;
-                boolean improved = false;
-                // check the given metric
-                switch (checkpoint.getMetric()) {
-                    case "val_loss":
-                        reportName = "Validation loss";
-                        val1 = capDouble(bestValLoss, 8);
-                        val2 = capDouble(valLoss, 8);
-                        if (valLoss < bestValLoss) {
-                            improved = true;
-                            bestValLoss = valLoss;
-                        } else {
-                            improved = false;
-                        }
-                        break;
-                    case "val_accuracy":
-                        reportName = "Validation accuracy";
-                        val1 = capDouble(bestValAccuracy, 8);
-                        val2 = capDouble(valAccuracy, 8);
-                        if (valAccuracy > bestValAccuracy) {
-                            improved = true;
-                            bestValAccuracy = valAccuracy;
-                        } else {
-                            improved = false;
-                        }
-                        break;
-                    case "train_loss":
-                        reportName = "Train loss";
-                        val1 = capDouble(bestTrainLoss, 8);
-                        val2 = capDouble(trainLoss, 8);
-                        if (trainLoss < bestTrainLoss) {
-                            improved = true;
-                            bestTrainLoss = trainLoss;
-                        } else {
-                            improved = false;
-                        }
-                        break;
-                    case "train_accuracy":
-                        reportName = "Train accuracy";
-                        val1 = capDouble(bestTrainAccuracy, 8);
-                        val2 = capDouble(trainAccuracy, 8);
-                        if (trainAccuracy > bestTrainAccuracy) {
-                            improved = true;
-                            bestTrainAccuracy = trainAccuracy;
-                        } else {
-                            improved = false;
-                        }
-                        break;
-                }
-                if (improved) {
-                    System.out.println(
-                        WHITE + reportName + " improved from "
-                        + BLUE + val1 + 
-                        WHITE + " to " + BLUE + val2 +
-                        WHITE + ". Saving model to " + BLUE + 
-                        checkpoint.getSavePath() + RESET + "\n"
-                    );
+            Callbacks.printMetricCallback(metricReport);
+
+            if (checkpoint != null) {
+                checkpoint.updateAndPrintCallback(
+                    trainAccuracy, 
+                    trainLoss, 
+                    valAccuracy, 
+                    valLoss
+                );
+
+                if (checkpoint.improved()) {
                     internalSaveWeights(checkpoint.getSavePath(), false);
-                } else {
-                    System.out.println(
-                        WHITE + reportName + " did not improve from "
-                        + BLUE + val1 + RESET + "\n"
-                    );
                 }
             }
-        }
-    }
+            System.out.println();
 
-    // Converts accuracy to percentage
-    private String accuracyToPercentage(double accuracy) {
-        // Cap to 4 significant figures
-        return capDouble(accuracy * 100, 5) + "%";
-    }
-    // Convert a double to a String with given length
-    private String capDouble(double number, int length) {
-        String numAsString = String.valueOf(number);
-        // Avoid StingIndexOutOfBoundsException
-        while (numAsString.length() < length) {
-            numAsString += "0";
+            
         }
-        return numAsString.substring(0, length);
     }
 
     /**
@@ -945,11 +860,11 @@ public class Sequential{
             params[targetIndex++] = String.valueOf(layer.numTrainableParameters());
         }
 
-        String title = "\033[1;37m Model Summary";
+        String title = AnsiCodes.BOLD + AnsiCodes.WHITE + " Model Summary";
         if (name != null) {
             title += " (" + name + ")";
         }
-        title += "\033[0m\033[94m";
+        title += AnsiCodes.RESET + AnsiCodes.BLUE;
         System.out.println("\n" + title);
         System.out.print("╭");
         for (int i = 0; i < spacesType; i++) {

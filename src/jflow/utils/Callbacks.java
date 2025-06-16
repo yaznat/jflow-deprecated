@@ -1,31 +1,26 @@
 package jflow.utils;
 
+import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
+
+import jflow.model.Sequential;
 
 /**
  * A compilation of useful printouts for custom train steps.
  */
 public class Callbacks {
-    private final static String BLUE = "\033[94m";
-    private final static String TEAL = "\033[38;2;0;153;153;1m";
-    private final static String ORANGE = "\033[38;2;255;165;1m";
-    private final static String WHITE = "\033[37m";
-    private final static String GREEN = "\033[38;2;0;204;0m";
-    private final static String RED = "\033[38;2;255;0;0m";
-    private final static String YELLOW = "\033[38;2;255;255;0m";
-    private final static String RESET = "\033[0m";
-    private final static String BOLD = "\033[1m";
-    private final static String SEPARATOR = TEAL + " | " + RESET;
+    private final static String SEPARATOR = 
+        AnsiCodes.TEAL + " | " + AnsiCodes.RESET;
     /**
      * Prints a formatted header using ANSI styling, indicating that training has begun.
      * @param name The name of the model or setup that is undergoing training.
      */
-    public static void printTrainingHeader(String name) {
+    public static void printTrainingHeader(Sequential model) {
         System.out.println(
-            BLUE + "=================== " +
-            BOLD + "Training: " + name + RESET +
-            BLUE + " ==================" + RESET
+            AnsiCodes.BLUE + "=================== " +
+            AnsiCodes.BOLD + "Training: " + model.name() + AnsiCodes.RESET +
+            AnsiCodes.BLUE + " ==================" + AnsiCodes.RESET
         );
     }
     /**
@@ -86,47 +81,34 @@ public class Callbacks {
 
 
     /**
-     * Prints a formatted report of training metrics using ANSI styling. Designed to follow Callbacks.printProgressCallback()
-     * when the inner training loop is complete.
-     * @param metrics A map of metric names to their values.
+     * Prints a formatted report of training metrics using ANSI styling.
+     * Intended to follow Callbacks.printProgressCallback() after each training epoch or batch.
+     *
+     * @param metrics A list of metrics, each containing a name, numeric value,
+     *                a flag indicating if it's a percentage (e.g., accuracy),
+     *                and a flag for whether it improved.
      */
-    public static void printMetricCallback(LinkedHashMap<String, Double> metrics) {
-        doMetricCallback(metrics, null);
-    }
-
-    /**
-     * Prints a formatted report of training metrics using ANSI styling. Designed to follow Callbacks.printProgressCallback()
-     * when the inner training loop is complete.
-     * @param metrics                       A map of metric names to their values.
-     * @param improvement                   An array of booleans in order with metrics, 
-     *                                      denoting if each value has improved (true), or worsened (false).
-     *                                      Improved metrics will be colored GREEN. Worsened metrics will be colored RED. 
-     */
-    public static void printMetricCallback(LinkedHashMap<String, Double> metrics, boolean[] improvement) {
-        doMetricCallback(metrics, improvement);
-    }
-
-    private static void doMetricCallback(
-        LinkedHashMap<String, Double> metrics, 
-        boolean[] improvement) {
+    public static void printMetricCallback(List<Metric> metrics) {
         System.out.print("\n");
-        int index = 0;
-        for (Map.Entry<String, Double> entry : metrics.entrySet()) {
-            String metric = entry.getKey();       
-            Double value = entry.getValue(); 
+        for (Metric m : metrics) {
+            String name = m.name();
+            double value = m.value();
 
-            String valueAsString = String.format("%.10f", value);
-
-            String color;
-            if (improvement == null) {
-                color = YELLOW;
-            } else if (improvement[index++]) {
-                color = GREEN;
+            String valueAsString;
+            if (m.isPercentage()) {
+                valueAsString = capDouble(100 * value, 5) + "%";
             } else {
-                color = RED;
+                valueAsString = capDouble(value, 8);
             }
 
-            System.out.println(BLUE + metric + ": " + color + valueAsString + RESET);
+            String color;
+            if (m.improved()) {
+                color = AnsiCodes.GREEN;
+            } else {
+                color = AnsiCodes.RED;
+            }
+            System.out.println(AnsiCodes.BLUE + name + ": " + 
+                color + valueAsString + AnsiCodes.RESET);
         }
     }
 
@@ -145,8 +127,10 @@ public class Callbacks {
         String report = "\r";
 
         // Add epochs and batches
-        report += BOLD + ORANGE + outerLabel + ": " + RESET + WHITE + currentMeasurement1 + "/" + totalMeasurement1 + 
-            SEPARATOR + BOLD + ORANGE + measurement2 + ": " + RESET + WHITE + currentMeasurement2 + "/" + totalMeasurement2;
+        report += AnsiCodes.BOLD + AnsiCodes.ORANGE + outerLabel + ": " + 
+            AnsiCodes.RESET + AnsiCodes.WHITE + currentMeasurement1 + "/" + totalMeasurement1 + 
+            SEPARATOR + AnsiCodes.BOLD + AnsiCodes.ORANGE + measurement2 + ": " + 
+            AnsiCodes.RESET + AnsiCodes.WHITE + currentMeasurement2 + "/" + totalMeasurement2;
 
 
         // Report losses if applicable
@@ -157,18 +141,19 @@ public class Callbacks {
     
                 String loss = String.format("%.6f", value);
 
-                report += SEPARATOR + BOLD + ORANGE + lossName + ": " + RESET + WHITE + loss + RESET;
+                report += SEPARATOR + AnsiCodes.BOLD + AnsiCodes.ORANGE + lossName + 
+                ": " + AnsiCodes.RESET + AnsiCodes.WHITE + loss + AnsiCodes.RESET;
             }
         }
         // Report ETA
-        report += SEPARATOR + BOLD + ORANGE + "ETA: " + RESET + WHITE + secondsToClock(
-            (int)(timeRemaining * 0.000000001)) + RESET;
+        report += SEPARATOR + AnsiCodes.BOLD + AnsiCodes.ORANGE + "ETA: " + 
+            AnsiCodes.RESET + AnsiCodes.WHITE + secondsToClock(
+            (int)(timeRemaining * 0.000000001)) + AnsiCodes.RESET;
         
         System.out.print(report);
     }
-
         
-
+    // Format seconds remaining into an ETA
     private static String secondsToClock(int totalSeconds) {
         int hours = 0; int minutes = 0;
         // hours
@@ -194,5 +179,19 @@ public class Callbacks {
         }
         return ((minutes < 10) ? "0" + minutes : "" + minutes) + ":" + 
             ((totalSeconds < 10) ? "0" + totalSeconds : "" + totalSeconds);
+    }
+
+    // Convert a double to a String with given length
+    private static String capDouble(double number, int length) {
+        if (number == Double.POSITIVE_INFINITY ||
+            number == Double.NEGATIVE_INFINITY) {
+            return String.valueOf(number);
+        }
+        String numAsString = String.valueOf(number);
+        // Avoid StingIndexOutOfBoundsException
+        while (numAsString.length() < length) {
+            numAsString += "0";
+        }
+        return numAsString.substring(0, length);
     }
 }

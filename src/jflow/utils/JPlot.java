@@ -20,7 +20,6 @@ public class JPlot {
     public static void displayImage(Image image, int scaleFactor) {
         JMatrix pixels = image.getPixels();
         // Display the image
-
         new ImageDisplay(pixels, scaleFactor, String.valueOf(image.getLabel()));
     }
 

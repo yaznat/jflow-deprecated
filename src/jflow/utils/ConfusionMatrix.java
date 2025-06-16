@@ -17,7 +17,7 @@ class ConfusionMatrix extends JPanel{
     private int[] predictions, labels;
 
     // This contstuctor displays a confusion matrix in a new JFrame
-    public ConfusionMatrix(int[] predictions, int[] labels){
+    ConfusionMatrix(int[] predictions, int[] labels){
         this.predictions = predictions;
         this.labels = labels;
         this.numClasses = max(labels) + 1;
@@ -29,7 +29,7 @@ class ConfusionMatrix extends JPanel{
         repaint();
         frame.setVisible(true);
     }
-    public void paintComponent(Graphics g) {
+    protected void paintComponent(Graphics g) {
         // initialize matrix
         double[][] labelsGuessed = new double[numClasses][numClasses];
         int[] correctPerLabel = new int[numClasses];
@@ -55,7 +55,7 @@ class ConfusionMatrix extends JPanel{
         }
         try {
             // Rotate the matrix for standard configuration
-            labelsGuessed = transpose(transpose(transpose(labelsGuessed)));
+            labelsGuessed = rotate90(rotate90(rotate90(labelsGuessed)));
         } catch (IllegalArgumentException e) {}
         for (int i = 0; i < numClasses; i++) {
             for (int j = 0; j < numClasses; j++) {
@@ -111,7 +111,7 @@ class ConfusionMatrix extends JPanel{
     }
 
     // Rotate an array clockwise by 90 degrees
-    public static double[][] transpose(double[][] arr) {
+    private static double[][] rotate90(double[][] arr) {
         int numRows = arr.length;
         int numCols = arr[0].length;
 
@@ -149,7 +149,7 @@ class ConfusionMatrix extends JPanel{
         return result;
     }
 
-    public int max(int[] arr) {
+    private int max(int[] arr) {
         int max = 0;
         for (int i : arr) {
             max = Math.max(max, i);
