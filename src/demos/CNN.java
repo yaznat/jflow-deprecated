@@ -73,14 +73,6 @@ public class CNN {
             20 // Scale factor
         );
 
-        // Add simple augmentations to train images
-        Transform augmentations = new Transform()
-            .randomFlip()
-            .randomBrightness();
-
-        loader.applyAugmentations(augmentations);
-
-
         // Build the model
         Sequential model = new Sequential("Cifar10_CNN")
             .setInputShape(

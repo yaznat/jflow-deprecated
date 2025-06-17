@@ -106,36 +106,6 @@ public class Transform {
         return this;
     }
 
-     /**
-     * Rotate images by either 90, 180, or 270 degrees.
-     */
-    public Transform randomRotation() {
-        System.out.println(normBounds[0]);
-        transforms.add(
-            image -> {
-                int numRotations = ThreadLocalRandom.current().nextInt(4);
-                for (int i = 0; i < numRotations; i++) {
-                    image = image.transpose4D();
-                }
-                return image;
-            }
-        );
-        return this;
-    }
-    /**
-     * 50% chance to flip the image horizontally.
-     */
-    public Transform randomFlip() {
-        transforms.add(
-            image -> {
-                if (ThreadLocalRandom.current().nextDouble() > 0.5) {
-                    image = image.transpose4D().transpose4D();
-                }
-                return image;
-            }
-        );
-        return this;
-    }
     /**
      * Adds a random brightness value to images.
      */
