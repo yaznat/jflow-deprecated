@@ -2,6 +2,8 @@ package jflow.model;
 
 
 import jflow.data.JMatrix;
+import jflow.utils.AnsiCodes;
+import jflow.utils.Callbacks;
 
 public abstract class Layer {
     private Layer previousLayer;
@@ -42,7 +44,9 @@ public abstract class Layer {
 
     public abstract int[] outputShape();
 
-    protected abstract JMatrix[] debugData();
+    protected abstract JMatrix[] forwardDebugData();
+    protected abstract JMatrix[] backwardDebugData();
+
 
     public JMatrix getOutput() {
         return output;
@@ -176,30 +180,19 @@ public abstract class Layer {
         return count;
     }
 
-    public void printDebug() {
-        JMatrix[] debugData = debugData();
+    protected void printForwardDebug() {
+        printDebug(forwardDebugData());
+    }
+
+    protected void printBackwardDebug() {
+        printDebug(backwardDebugData());
+    }
+
+
+    private void printDebug(JMatrix[] debugData) {
         if (!(debugData == null)) {
             String title = getName() + " gradients";
-            System.out.println("\033[94m╭──────────────────── \033[0m\033[1;94m" + 
-            title + "\033[0m\033[94m ────────────────────╮\033[0m");
-
-            // Iterate over entries
-            for (JMatrix data : debugData) {
-                String dataName = data.getName();
-                System.out.print("\033[94m│\033[0m " + "\033[38;2;0;153;153m" + dataName + "\033[0m");
-                // Print statistics for the entry
-                System.out.print(" \033[38;2;222;197;15m|\033[0m \033[38;2;255;165;0mshape:\033[0m \033[37m" + data.shapeAsString() + "\033[0m"); // shape
-                System.out.print(" \033[38;2;222;197;15m|\033[0m \033[38;2;255;165;0mabsmax:\033[0m \033[37m" + data.absMax() + "\033[0m"); // absmax
-                System.out.print(" \033[38;2;222;197;15m|\033[0m \033[38;2;255;165;0mabsmean:\033[0m \033[37m" + data.absMean() + "\033[0m"); // absmean
-                System.out.print(" \033[38;2;222;197;15m|\033[0m \033[38;2;255;165;0mL1:\033[0m \033[37m" + data.l1Norm() + "\033[0m\n"); // L1 norm
-            }
-            String closer = "\033[94m╰─────────────────────";
-            for (int i = 0; i < title.length(); i++) {
-                closer += "─";
-            }
-            closer += "─────────────────────╯\033[0m";
-            System.out.println(closer);
+            Callbacks.printStats(title, debugData);
         }
-        
     }
 }

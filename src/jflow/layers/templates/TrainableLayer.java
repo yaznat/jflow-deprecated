@@ -13,9 +13,16 @@ public abstract class TrainableLayer extends ShapeAlteringLayer{
 
     public abstract JMatrix[] getWeights();
 
+    @Override
+    protected JMatrix[] forwardDebugData() {
+        if (getOutput() == null) {
+            return null;
+        }
+        return new JMatrix[]{getOutput().setName("output")};
+    }
 
     @Override 
-    protected JMatrix[] debugData() {
+    protected JMatrix[] backwardDebugData() {
         JMatrix[] parameterGradients = getParameterGradients();
         int numParameterGradients = parameterGradients.length;
         boolean hasDX = true;
@@ -30,7 +37,7 @@ public abstract class TrainableLayer extends ShapeAlteringLayer{
         }
         // Ensure dX is properly named
         if (hasDX) {
-            debugData[numParameterGradients] = getGradient().setName("dX");
+            debugData[numParameterGradients] = getGradient().setName("dOutput");
         }
         return debugData;
     }

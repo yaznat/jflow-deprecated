@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import jflow.data.JMatrix;
 import jflow.model.Sequential;
 
 /**
@@ -12,6 +13,50 @@ import jflow.model.Sequential;
 public class Callbacks {
     private final static String SEPARATOR = 
         AnsiCodes.TEAL + " | " + AnsiCodes.RESET;
+
+
+    /**
+     * Print a detailed, ANSI-styled debug line in the terminal 
+     * for a group of JMatrixes. <p>
+     * Included stats: <ul>
+     * <li> shape </li>
+     * <li> absmean </li>
+     * <li> L1 norm </li>
+     * <li> L2 norm </li>
+     * </ul>
+     * @param debugData An array of JMatrixes grouped semantically.
+     * @param debugTitle The title of this JMatrix group. Enter "" for no title.
+     */
+    public static void printStats(String debugTitle, JMatrix... debugData) {
+        if (!debugTitle.equals("")) {
+            debugTitle = " " + debugTitle + " ";
+        }
+        System.out.println(
+                AnsiCodes.BLUE + "╭────────────────────" + AnsiCodes.BOLD + 
+                debugTitle + AnsiCodes.RESET + AnsiCodes.BLUE + "────────────────────╮");
+
+            // Iterate over matrices
+            for (JMatrix data : debugData) {
+                System.out.print(AnsiCodes.BLUE + "│ ");
+                // Print name
+                String dataName = data.getName();
+                System.out.print(AnsiCodes.TEAL + dataName);
+                // Print statistics
+                System.out.print(SEPARATOR + AnsiCodes.ORANGE + "shape (N, C, H, W): " + AnsiCodes.WHITE + data.shapeAsString()); 
+                System.out.print(SEPARATOR + AnsiCodes.ORANGE + "absmean: " + AnsiCodes.WHITE + data.absMean());
+                System.out.print(SEPARATOR + AnsiCodes.ORANGE + "L1: " + AnsiCodes.WHITE + data.l1Norm());
+                System.out.print(SEPARATOR + AnsiCodes.ORANGE + "L2: " + AnsiCodes.WHITE + data.l2Norm());
+
+                System.out.println();
+            }
+            String closer = AnsiCodes.BLUE + "╰────────────────────";
+            for (int i = 0; i < debugTitle.length(); i++) {
+                closer += "─";
+            }
+            closer += "────────────────────╯" + AnsiCodes.RESET;
+            System.out.println(closer);
+        
+    }
     /**
      * Prints a formatted header using ANSI styling, indicating that training has begun.
      * @param name The name of the model or setup that is undergoing training.

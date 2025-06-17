@@ -393,9 +393,10 @@ public class Sequential{
                 LinkedHashMap<String, Double> lossReport = new LinkedHashMap<>();
                 lossReport.put("Loss", totalLoss / (batch + 1));
 
-                if (!debugMode) {
-                    Callbacks.printProgressCallback("Epoch", epoch, epochs, "Batch", batch + 1, numBatches,
+                Callbacks.printProgressCallback("Epoch", epoch, epochs, "Batch", batch + 1, numBatches,
                         timeSinceStart, lossReport);
+                if (debugMode) {
+                    System.out.println(); // No carriage return
                 }
             }
             Double trainLoss = totalLoss / numBatches;
@@ -520,11 +521,23 @@ public class Sequential{
      * @param training             Indicate whether for training or inference.
      * @return                     Returns the forward output of the last layer of the model.
      */
-    public JMatrix forward(JMatrix images, boolean training) {
-        JMatrix output = images;
+    public JMatrix forward(JMatrix input, boolean training) {
+        if (debugMode && training) {
+            System.out.println(
+                AnsiCodes.BLUE + "============" +
+                " Forward Pass Debug " + "============"
+                + AnsiCodes.RESET
+            );
+            Callbacks.printStats("", input.setName("input"));
+
+        }
+        JMatrix output = input;
         for (int i = 0; i < layers.size(); i++) {
             if (!layers.get(i).isInternal()) {
                 output = layers.get(i).forward(output, training);
+            }
+            if (debugMode && training) {
+                layers.get(i).printForwardDebug();
             }
         }
         return output;
@@ -537,13 +550,21 @@ public class Sequential{
      * @return                     Returns the gradient, dX, of the first layer of the model.
      */
     public JMatrix backward(JMatrix yTrue) {
+        if (debugMode) {
+            System.out.println(
+                AnsiCodes.BLUE + "============" +
+                " Backward Pass Debug " + "============"
+                + AnsiCodes.RESET
+            );
+            Callbacks.printStats("", yTrue.setName("yTrue"));
+        }
         JMatrix gradient = yTrue;
         for (int i = layers.size() - 1; i >= 0; i--) {
             if (!layers.get(i).isInternal()) {
                 gradient = layers.get(i).backward(gradient);
             }
             if (debugMode) {
-                layers.get(i).printDebug();
+                layers.get(i).printBackwardDebug();
             }
         }
         return gradient;
@@ -752,8 +773,6 @@ public class Sequential{
     }
 
     
-
-
     private boolean isFlat(Layer layer) {
         return layer instanceof Dense || layer instanceof Embedding;
     }

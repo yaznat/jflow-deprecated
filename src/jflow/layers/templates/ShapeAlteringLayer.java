@@ -13,10 +13,18 @@ public abstract class ShapeAlteringLayer extends Layer{
     public abstract JMatrix backward(JMatrix input);
 
     @Override
-    protected JMatrix[] debugData() {
+    protected JMatrix[] forwardDebugData() {
+        if (getOutput() == null) {
+            return null;
+        }
+        return new JMatrix[]{getOutput().setName("activation")};
+    }
+
+    @Override
+    protected JMatrix[] backwardDebugData() {
         if (getGradient() == null) {
             return null;
         }
-        return new JMatrix[]{getGradient().setName("dX")};
+        return new JMatrix[]{getGradient().setName("dActivation")};
     }
 }
