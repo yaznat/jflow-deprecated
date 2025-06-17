@@ -19,8 +19,10 @@
 #### Low-level Control & Debugging  
 - Clean, Keras-similar UI for model training.  
 - Implement custom training steps easily.  
-- Debug mode for inspecting gradients:  
-![Debug Example](readme-images/Debug-Example.png)  
+- Debug mode for inspecting gradients.  
+  
+Simple Neural Network Debug    
+![Gradient Debug Example](readme-images/Gradient-Debug-Example.png)  
 
 ### Key Features  
 
