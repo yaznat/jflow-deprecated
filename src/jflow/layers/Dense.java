@@ -1,6 +1,5 @@
 package jflow.layers;
 
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.IntStream;
 
 import jflow.data.JMatrix;
@@ -13,87 +12,136 @@ public class Dense extends TrainableLayer {
     private JMatrix biases;
     private JMatrix dBiases;
 
+    private float[] tiedWeights = null;
+
     private int outputSize;
+    private double customInitScale;
 
     private boolean useBias = true;
+    private boolean useCustomScale = false;
 
-    public Dense(int size, int[] inputShape, boolean useBias) {
-        this(size, inputShape);
-        this.useBias = useBias;
-    }
 
-    public Dense(int size, int[] inputShape) {
-        this(size);
-
-        if (inputShape.length != 1) {
-            throw new IllegalArgumentException(
-                "Dense input shape should have 1 dimension. Got: "
-                + inputShape.length + "."
-            );
-        }
-        setInputShape(inputShape);
-
-    }
-
+    /**
+     * Represents a fully connected layer.
+     * 
+     * <p><b>Do not instantiate directly.</b> Use the static builder method:
+     * {@code import static jflow.model.builder.*;}
+     * and call {@code Dense(...)} instead of {@code new Dense(...)}.
+     */
     public Dense(int size) {
         super("dense");
         this.outputSize = size;
     }
 
+    /**
+     * Represents a fully connected layer.
+     * 
+     * <p><b>Do not instantiate directly.</b> Use the static builder method:
+     * {@code import static jflow.model.builder.*;}
+     * and call {@code Dense(...)} instead of {@code new Dense(...)}.
+     */
     public Dense(int size, boolean useBias) {
         this(size);
         this.useBias = useBias;
     }
 
+    /**
+     * Represents a fully connected layer.
+     * 
+     * <p><b>Do not instantiate directly.</b> Use the static builder method:
+     * {@code import static jflow.model.builder.*;}
+     * and call {@code Dense(...)} instead of {@code new Dense(...)}.
+     */
+    public Dense(int size, int[] inputShape) {
+        this(size);
+
+        if (inputShape.length != 2) { // + 1 for internal batch dimension
+            throw new IllegalArgumentException(
+                "Dense input shape should have 1 dimension. Got: "
+                + (inputShape.length - 1) + "."
+            );
+        }
+        setInputShape(inputShape);
+    }
+
+    /**
+     * Represents a fully connected layer.
+     * 
+     * <p><b>Do not instantiate directly.</b> Use the static builder method:
+     * {@code import static jflow.model.builder.*;}
+     * and call {@code Dense(...)} instead of {@code new Dense(...)}.
+     */
+    public Dense(int size, int[] inputShape, boolean useBias) {
+        this(size, inputShape);
+        this.useBias = useBias;
+    }
+
+    /**
+     * Initialize the weights of this Dense layer with a custom scale.
+     * @param scale The magnitude of initialization. 
+     * Parameters will be in the range [-scale, scale].
+     */
+    public Dense customInitScale(double scale) {
+        useCustomScale = true;
+        customInitScale = scale;
+        return this;
+    }
+
+    /**
+     * Set the weight matrix for weight tying.
+     * @param weights The weight matrix to use for this Dense layer.
+     */
+    public Dense weightTie(float[] weights, boolean removeFromParamCount) {
+        this.tiedWeights = weights;
+        if (removeFromParamCount) {
+            // Remove the matrix from numTrainableParameters
+            setNumTrainableParameters((useBias) ? outputSize : 0);
+        } else {
+            setNumTrainableParameters((useBias) ? outputSize + weights.length : weights.length);
+        }
+        return this;
+    }  
+
     @Override
-    public void build(int IDnum) {
+    protected void build(int IDnum) {
         super.build(IDnum);
         int inputSize;
-        if (internalGetInputShape() != null) {
-            inputSize = internalGetInputShape()[0];
-        } else {
-            if (getPreviousLayer() == null) {
-                throw new IllegalStateException(
+        int[] inputShape = getInputShape();
+
+        if (inputShape == null) {
+            throw new IllegalStateException(
                     "In " + this.getClass().getSimpleName() + 
                     ": Cannot build the first layer without an input shape."
                 );
-            }
-            // Channel dimension
-            inputSize = getPreviousLayer().outputShape()[1];
+        } else {
+            inputSize = inputShape[1]; // Channel dimension
         }
-        int numTrainableParameters = inputSize * outputSize;
-        if (useBias) {
-            numTrainableParameters += outputSize;
-        }
-        setNumTrainableParameters(numTrainableParameters);
 
+        // Xavier initialization or custom
+        double scale = (useCustomScale) ? customInitScale : Math.sqrt(2.0 / (inputSize + outputSize));
 
-        // Initialize weights and biases
-        float[] weights = new float[outputSize * inputSize];
-        float[] biases = new float[outputSize];
+        double min = -1.0 * scale;
+        double max = scale;
 
-        // He Initialization
-        double scale = Math.sqrt(2.0 / inputSize);
-
-        IntStream.range(0, outputSize).parallel().forEach(i -> {
-            for (int j = 0; j < inputSize; j++) {
-                weights[i * inputSize + j] = (float)(
-                    (ThreadLocalRandom.current().nextDouble() - 0.5) * scale);  
-            }
-            if (useBias) {
-                biases[i] = (float)((Math.random() - 0.5) * 0.5);
-            }
-            
-        });
-
-        this.weights = JMatrix.wrap(weights, outputSize, inputSize, 1, 1).setName("weights");
-        this.dWeights = JMatrix.zeros(outputSize, inputSize, 1, 1).setName("dWeights");
+        weights = JMatrix.uniform(outputSize, inputSize, 1, 1, min, max).setName("weights");
+        dWeights = JMatrix.zeros(outputSize, inputSize, 1, 1).setName("dWeights");
 
         if (useBias) {
-            this.biases = JMatrix.wrap(biases, outputSize, 1, 1, 1).setName("biases");
-            this.dBiases = JMatrix.zeros(outputSize, 1, 1, 1).setName("dBiases");
+            biases = JMatrix.uniform(outputSize, 1, 1, 1, min, max).setName("biases");
+            dBiases = JMatrix.zeros(outputSize, 1, 1, 1).setName("dBiases");
         }   
-        
+
+        if (tiedWeights == null) {
+            int numTrainableParameters = 0;
+            numTrainableParameters += inputSize * outputSize;
+            if (useBias) {
+                numTrainableParameters += outputSize;
+            }
+            setNumTrainableParameters(numTrainableParameters);
+        } else {
+            weights.setMatrix(tiedWeights);
+            tiedWeights = null;
+        }
     }
 
     @Override
@@ -108,46 +156,39 @@ public class Dense extends TrainableLayer {
         }
 
         // Calculate forward output
-        JMatrix A = weights.matmul(input, true); // scaled
+        JMatrix output = weights.matmul(input, true); // Scaled matmul product
 
         if (useBias) {
-            applyBiasByRow(A, biases); 
+            applyBiasByRow(output, biases); 
         }
-       
-
-        return trackOutput(A, training);
+    
+        return trackOutput(output, training);
     }
+
     @Override
     public JMatrix backward(JMatrix gradient) {
-
-        // Calculate dWeights and dBiases
+        // Transpose if necessary
         if (gradient.channels() * gradient.height() * gradient.width() != 
                 lastInput.channels() * lastInput.height() * lastInput.width()) {
             gradient = gradient.transpose2D();
         }
-        dWeights.setMatrix(gradient.matmul(lastInput.transpose2D(), true).getMatrix()); // avoid reassigning reference
+        // Calculate dWeights and dBiases
+        JMatrix weightGrad = gradient.matmul(lastInput.transpose2D(), true); // Scaled matmul product
+        dWeights.setMatrix(weightGrad.unwrap()); // Avoid reassigning reference
+
         if (useBias) {
-            dBiases.setMatrix(gradient.sum(0).getMatrix());
+            JMatrix biasGrad = gradient.sum(0).multiplyInPlace(1.0 / gradient.length()); // Scaled sum
+            dBiases.setMatrix(biasGrad.unwrap()); // Avoid reassigning reference
         }
 
-        // Save memory
+        // Free memory
         lastInput = null;
        
-
         // Normalize dWeights and dBiases
         adaptiveGradientClip(weights, biases, dWeights, dBiases, 1e-2);
 
         // Calculate loss w.r.t previous layer
         JMatrix dX = weights.transpose2D().matmul(gradient, true); // Scaled matmul product
-
-        // float normValue = dX.frobeniusNorm();
-
-        // // Apply gradient scaling if the norm exceeds the threshold
-        // float threshold = 2.0f;
-        // if (normValue > threshold) {
-        //     // Scale the gradients
-        //     dX.multiplyInPlace(threshold / normValue);
-        // }
 
         return trackGradient(dX);
     }
@@ -160,54 +201,8 @@ public class Dense extends TrainableLayer {
         }
     }
 
-    private void applyBiasByRow(JMatrix A, JMatrix bias) {
-        int rows = A.length();
-        int cols = A.channels() * A.height() * A.width();
-        
-        IntStream.range(0, rows).parallel().forEach(i -> {
-            for (int j = 0; j < cols; j++) { 
-                A.set(i * cols + j, A.get(i * cols + j) + bias.get(i));
-            }
-        });
-    }
-    
-    // Adaptively clip with frobenius norm
-    private void adaptiveGradientClip(JMatrix weights, JMatrix biases, JMatrix dWeights, JMatrix dBiases, double epsilon) {
-        // Clip weights
-        // double weightNorm = weights.frobeniusNorm();
-        double gradWeightNorm = dWeights.l2Norm();
-        // double maxWeightNorm = Math.max(gradWeightNorm, epsilon * weightNorm);
-        double maxWeightNorm = 10.0;
-        
-        if (gradWeightNorm > maxWeightNorm) {
-            double scaleWeight = maxWeightNorm / gradWeightNorm;
-            dWeights.multiplyInPlace(scaleWeight);
-        }
-        
-        // Clip biases
-        if (useBias) {
-            double biasNorm = biases.l2Norm();
-            double gradBiasNorm = dBiases.l2Norm();
-            double maxBiasNorm = Math.max(gradBiasNorm, epsilon * biasNorm);
-            
-            if (gradBiasNorm > maxBiasNorm) {
-                double scaleBias = maxBiasNorm / gradBiasNorm;
-                dBiases.multiplyInPlace(scaleBias);
-            }
-        }
-    }
-    /**
-     * Set the weight matrix for weight tying.
-     * @param weights a reference to the weight matrix to use for this Dense layer.
-     */
-    public void weightTie(float[] weights) {
-        this.weights.setMatrix(weights);
-        // Remove the matrix from numTrainableParameters
-        setNumTrainableParameters((useBias) ? outputSize : 0);
-    }
-
     @Override
-    public JMatrix[] getWeights() {
+    public JMatrix[] getParameters() {
         if (useBias) {
             return new JMatrix[]{weights, biases};
         } else {
@@ -227,11 +222,53 @@ public class Dense extends TrainableLayer {
 
     @Override
     public int[] outputShape() {
-        int[] outputShape = new int[] {-1, outputSize};
+        int[] outputShape = new int[] {1, outputSize};
         return outputShape;
     }
 
-  
+    private void applyBiasByRow(JMatrix output, JMatrix bias) {
+        int rows = output.length();
+        int cols = output.channels() * output.height() * output.width();
+        
+        IntStream.range(0, rows).parallel().forEach(i -> {
+            for (int j = 0; j < cols; j++) { 
+                output.set(i * cols + j, output.get(i * cols + j) + bias.get(i));
+            }
+        });
+    }
+    
+    // Adaptively clip with L2 norm
+    private void adaptiveGradientClip(
+        JMatrix weights, 
+        JMatrix biases, 
+        JMatrix dWeights, 
+        JMatrix dBiases, 
+        double epsilon
+    ) {
+        // Clip weights
+        double weightNorm = weights.l2Norm();
+        double gradWeightNorm = dWeights.l2Norm();
+
+        double maxWeightNorm = Math.max(gradWeightNorm, epsilon * weightNorm);
+        
+        if (gradWeightNorm > maxWeightNorm) {
+            double weightScale = maxWeightNorm / gradWeightNorm;
+            dWeights.multiplyInPlace(weightScale);
+        }
+        
+        // Clip biases
+        if (useBias) {
+            double biasNorm = biases.l2Norm();
+            double gradBiasNorm = dBiases.l2Norm();
+
+            double maxBiasNorm = Math.max(gradBiasNorm, epsilon * biasNorm);
+            
+            if (gradBiasNorm > maxBiasNorm) {
+                double biasScale = maxBiasNorm / gradBiasNorm;
+                dBiases.multiplyInPlace(biasScale);
+            }
+        }
+    }
 }
 
 

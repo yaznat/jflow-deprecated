@@ -21,7 +21,7 @@ public class Upsampling2D extends ShapeAlteringLayer{
         int height = input.height();
         int width = input.width();
 
-        float[] inputMatrix = input.getMatrix();
+        float[] inputMatrix = input.unwrap();
         
         int newHeight = height * scaleFactor;
         int newWidth = width * scaleFactor;
@@ -59,7 +59,7 @@ public class Upsampling2D extends ShapeAlteringLayer{
         int channels = input.channels();
         int height = input.height();
         int width = input.width();
-        float[] inputMatrix = input.getMatrix(); 
+        float[] inputMatrix = input.unwrap(); 
         
         int newHeight = height / scaleFactor;
         int newWidth = width / scaleFactor;

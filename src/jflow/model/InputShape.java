@@ -18,8 +18,8 @@ public class InputShape {
 
     protected int[] getShape() {
         if (flat) {
-            return new int[]{flattenedSize};
+            return new int[]{1, flattenedSize};
         }
-        return new int[]{channels, height, width};
+        return new int[]{1, channels, height, width};
     }
 }

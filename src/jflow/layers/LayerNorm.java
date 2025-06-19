@@ -174,7 +174,7 @@ public class LayerNorm extends TrainableLayer {
     }
 
     @Override
-    public JMatrix[] getWeights() {
+    public JMatrix[] getParameters() {
         return new JMatrix[]{gamma, beta};
     }
 

@@ -11,7 +11,7 @@ public abstract class TrainableLayer extends ShapeAlteringLayer{
 
     public abstract void updateParameters(JMatrix[] parameterUpdates);
 
-    public abstract JMatrix[] getWeights();
+    public abstract JMatrix[] getParameters();
 
     @Override
     protected JMatrix[] forwardDebugData() {

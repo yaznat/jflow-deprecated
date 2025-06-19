@@ -136,22 +136,30 @@ public class JMatrix {
     }
 
     /**
-     * Create a JMatrix with random values in the range [0,1]
+     * Create a JMatrix with uniform distribution in a specified range.
      * @param length                        the N dimension of the JMatrix.
      * @param channels                      the channel dimension of the JMatrix.
      * @param height                        the height dimension of the JMatrix.
      * @param width                         the width dimension of the JMatrix.
-     * 
-     * @return                              a new JMatrix with the specified dimensions 
-     * and random values in the range [0,1].
-     * 
+     * @param min                           the minimum value, inclusive.
+     * @param max                           the maximum value, exclusive.
      */
-    public static JMatrix randn(int length, int channels, int height, int width) {
+    public static JMatrix uniform(
+        int length,
+        int channels,
+        int height,
+        int width,
+        double min,
+        double max
+    ) {
         int size = length * channels * height * width;
-
         float[] noise = new float[size];
+
         IntStream.range(0, size).parallel().forEach(i -> {
-            noise[i] = (float)ThreadLocalRandom.current().nextDouble();
+            noise[i] = (float)(ThreadLocalRandom
+                                    .current()
+                                    .nextDouble(min, max)
+                              );
         });
 
         return JMatrix.wrap(noise, length, channels, height, width);
@@ -160,7 +168,7 @@ public class JMatrix {
     /**
      * Access the wrapped array.
      */
-    public float[] getMatrix() {
+    public float[] unwrap() {
         return matrix;
     }
 
@@ -229,7 +237,7 @@ public class JMatrix {
      * @exception IllegalArgumentException      if: <ul> <li>  the length of shape is not four. </li> 
      * <li> the reported number of elements is unequal to the length of the matrix. </li> </ul> 
      */
-    public void setMatrix(float[] matrix, int[] shape) {
+    public JMatrix setMatrix(float[] matrix, int[] shape) {
         int newSize = length * channels * height * width;
         if (matrix.length != newSize) {
             throw new IllegalArgumentException(
@@ -242,6 +250,7 @@ public class JMatrix {
         this.channels = shape[1];
         this.height = shape[2];
         this.width = shape[3];
+        return this;
     }
     
     /**
@@ -253,7 +262,7 @@ public class JMatrix {
      */
     public void arrayCopyBatch(int batchIndex, JMatrix values) {
         int itemSize = channels * height * width;
-        float[] internalValues = values.getMatrix();
+        float[] internalValues = values.unwrap();
         if (internalValues.length != itemSize) {
             throw new IllegalArgumentException("Unexpected length: " + internalValues.length + 
                 ". Expected: " + itemSize);
@@ -651,7 +660,7 @@ public class JMatrix {
         float smoothValue = smoothing / numLabels;
         JMatrix oneHotMatrix = JMatrix.zeros(batchSize, seqLen, numLabels, 1);
 
-        oneHotMatrix.fill(smoothing);
+        oneHotMatrix.fill(smoothValue);
         
         // Fill in the one-hot encoded values
         for (int batch = 0; batch < batchSize; batch++) {
@@ -843,7 +852,7 @@ public class JMatrix {
         }
         
         float[] matrixA = matrix;
-        float[] matrixB = secondMatrix.getMatrix();
+        float[] matrixB = secondMatrix.unwrap();
         
         // Use simple algorithm for small matrices
         if (m < cutoffSize && n < cutoffSize && k < cutoffSize) {
@@ -888,7 +897,7 @@ public class JMatrix {
         }
 
         float[] result = OptimizedMatmul.batchMatmul(
-            matrix, secondMatrix.getMatrix(), 
+            matrix, secondMatrix.unwrap(), 
             length, inputChannels, outFlatSpatialDim, outputChannels, 
             scale, 
             BLOCK_SIZE_M, BLOCK_SIZE_N, BLOCK_SIZE_K, 
@@ -1123,7 +1132,7 @@ public class JMatrix {
         int size = size();
 
         float[] result = (inPlace) ? matrix : new float[size];
-        float[] broadcast = secondMatrix.getMatrix();
+        float[] broadcast = secondMatrix.unwrap();
         
         int[] broadcastDims;
         // Full element-wise broadcast

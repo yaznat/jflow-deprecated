@@ -27,7 +27,7 @@ public class Flatten extends ShapeAlteringLayer{
         int[] prevOutputShape = getPreviousLayer().outputShape();
         int flattenedSize = prevOutputShape[1] * prevOutputShape[2] * prevOutputShape[3];
 
-        return new int[]{-1, flattenedSize};
+        return new int[]{1, flattenedSize};
     }
     
 }

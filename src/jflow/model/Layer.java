@@ -2,41 +2,27 @@ package jflow.model;
 
 
 import jflow.data.JMatrix;
-import jflow.utils.AnsiCodes;
 import jflow.utils.Callbacks;
 
 public abstract class Layer {
+    // Layer graph
     private Layer previousLayer;
     private Layer nextLayer;
     private Layer enclosingLayer;
 
+    // Data
     private JMatrix output;
     private JMatrix gradient;
 
+    // Shape and configuration
     private int[] inputShape;
-
-    private String type;
-
+    private final String type;
     private int numTrainableParameters;
     private int IDnum;
-
-    private boolean isShapeInfluencer;
+    private final boolean isShapeInfluencer;
     private boolean gradientStorageDisabled = false;
-        
-    protected Layer(String type, boolean isShapeInfluencer) {
-        this.type = type;
-        this.isShapeInfluencer = isShapeInfluencer;
-    }
 
-    protected void build(int IDnum) {
-        this.IDnum = IDnum;
-        // if (getPreviousLayer() == null) {
-        //     System.out.println(getName() + " connected to input");
-        // } else {
-        //     System.out.println(getName() + " connected to " + getPreviousLayer().getName());
-        // }
         
-    }
 
     public abstract JMatrix forward(JMatrix input, boolean training);
 
@@ -46,6 +32,42 @@ public abstract class Layer {
 
     protected abstract JMatrix[] forwardDebugData();
     protected abstract JMatrix[] backwardDebugData();
+
+    protected Layer(String type, boolean isShapeInfluencer) {
+        this.type = type;
+        this.isShapeInfluencer = isShapeInfluencer;
+    }
+
+    protected Layer getNextLayer() {
+        return nextLayer;
+    }
+    protected Layer getPreviousLayer() {
+        return previousLayer;
+    }
+
+    protected void setNextLayer(Layer nextLayer) {
+        this.nextLayer = nextLayer;
+    }
+
+    protected void setPreviousLayer(Layer previousLayer) {
+        this.previousLayer = previousLayer;
+    }
+
+    protected void setEnclosingLayer(Layer enclosingLayer) {
+        this.enclosingLayer = enclosingLayer;
+    }
+
+    protected Layer getEnclosingLayer() {
+        return enclosingLayer;
+    }
+    protected boolean isInternal() {
+        return enclosingLayer != null;
+    }
+
+    // Some layers will override this
+    protected void build(int IDnum) {
+        this.IDnum = IDnum;
+    }
 
 
     public JMatrix getOutput() {
@@ -67,7 +89,10 @@ public abstract class Layer {
     }
     
     protected JMatrix trackGradient(JMatrix gradient) {
-        if (!gradientStorageDisabled) {
+        if (gradientStorageDisabled) {
+            // Ensure memory is freed
+            this.gradient = null;
+        } else {
             this.gradient = gradient;
         }
         return gradient;
@@ -80,20 +105,13 @@ public abstract class Layer {
     protected void disableGradientStorage() {
         gradientStorageDisabled = true;
     }
-
-    protected boolean gradientStorageDisabled() {
-        return gradientStorageDisabled;
-    }
     
-    protected int[] internalGetInputShape() {
-        return inputShape;
-    }
 
     protected int[] getInputShape() {
-        if (internalGetInputShape() == null) {
+        if (inputShape == null) {
             return getPreviousLayer().outputShape();
         }
-        return internalGetInputShape();
+        return inputShape;
     }
 
     // True if this layer changes output shape (e.g., Dense, Conv2D, Flatten)
@@ -108,20 +126,6 @@ public abstract class Layer {
         }
         return prevLayer;
     }
-    protected Layer getNextLayer() {
-        return nextLayer;
-    }
-    protected Layer getPreviousLayer() {
-        return previousLayer;
-    }
-
-    protected void setNextLayer(Layer nextLayer) {
-        this.nextLayer = nextLayer;
-    }
-
-    protected void setPreviousLayer(Layer previousLayer) {
-        this.previousLayer = previousLayer;
-    }
 
     protected boolean trainable() {
         return numTrainableParameters() != 0;
@@ -133,6 +137,7 @@ public abstract class Layer {
     protected int numTrainableParameters() {
         return numTrainableParameters;
     }
+
     // For proper layer build after initialization
     protected void setNumTrainableParameters(int numTrainableParameters) {
         this.numTrainableParameters = numTrainableParameters;
@@ -153,18 +158,6 @@ public abstract class Layer {
         }   else {
             return 1 + getPreviousLayer().getLayerIndex();
         }
-    }
-
-
-    protected void setEnclosingLayer(Layer enclosingLayer) {
-        this.enclosingLayer = enclosingLayer;
-    }
-
-    protected Layer getEnclosingLayer() {
-        return enclosingLayer;
-    }
-    protected boolean isInternal() {
-        return enclosingLayer != null;
     }
 
     // Count the number of layers in the linked list of a certain type.

@@ -353,7 +353,7 @@ public class BatchNorm extends TrainableLayer {
     }
 
     @Override
-    public JMatrix[] getWeights() {
+    public JMatrix[] getParameters() {
         return new JMatrix[]{gamma, beta, runningMean, runningVar};
     }
 

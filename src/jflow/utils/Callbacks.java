@@ -28,6 +28,7 @@ public class Callbacks {
      * @param debugTitle The title of this JMatrix group. Enter "" for no title.
      */
     public static void printStats(String debugTitle, JMatrix... debugData) {
+        String separator = AnsiCodes.YELLOW + " | ";
         if (!debugTitle.equals("")) {
             debugTitle = " " + debugTitle + " ";
         }
@@ -42,10 +43,11 @@ public class Callbacks {
                 String dataName = data.getName();
                 System.out.print(AnsiCodes.TEAL + dataName);
                 // Print statistics
-                System.out.print(SEPARATOR + AnsiCodes.ORANGE + "shape (N, C, H, W): " + AnsiCodes.WHITE + data.shapeAsString()); 
-                System.out.print(SEPARATOR + AnsiCodes.ORANGE + "absmean: " + AnsiCodes.WHITE + data.absMean());
-                System.out.print(SEPARATOR + AnsiCodes.ORANGE + "L1: " + AnsiCodes.WHITE + data.l1Norm());
-                System.out.print(SEPARATOR + AnsiCodes.ORANGE + "L2: " + AnsiCodes.WHITE + data.l2Norm());
+                System.out.print(separator + AnsiCodes.ORANGE + "shape " + AnsiCodes.TEAL + 
+                    "(N, C, H, W)" + AnsiCodes.ORANGE + ": " + AnsiCodes.WHITE + data.shapeAsString()); 
+                System.out.print(separator + AnsiCodes.ORANGE + "absmean: " + AnsiCodes.WHITE + (float)data.absMean());
+                System.out.print(separator + AnsiCodes.ORANGE + "L1: " + AnsiCodes.WHITE + (float)data.l1Norm());
+                System.out.print(separator + AnsiCodes.ORANGE + "L2: " + AnsiCodes.WHITE + (float)data.l2Norm());
 
                 System.out.println();
             }

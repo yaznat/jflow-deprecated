@@ -121,7 +121,7 @@ public class MaxPool2D extends ShapeAlteringLayer {
     @Override
     public int[] outputShape() {
         int[] outputShape = null;
-        int[] prev = getPreviousLayer().outputShape();
+        int[] prev = getInputShape();
 
         if (getOutput() != null) {
             outputShape = getOutput().shape();
@@ -132,7 +132,7 @@ public class MaxPool2D extends ShapeAlteringLayer {
             int outputHeight = (oldHeight - poolSize) / stride + 1;
             int outputWidth = (oldWidth - poolSize) / stride + 1;
 
-            return new int[]{-1, prev[1], outputHeight, outputWidth};
+            return new int[]{1, prev[1], outputHeight, outputWidth};
             
         }
         return outputShape;

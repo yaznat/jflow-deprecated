@@ -5,7 +5,6 @@ import java.util.stream.IntStream;
 
 import jflow.data.JMatrix;
 import jflow.layers.templates.ShapePreservingLayer;
-import jflow.model.Layer;
 
 public class Dropout extends ShapePreservingLayer{
     private double dropoutRate;

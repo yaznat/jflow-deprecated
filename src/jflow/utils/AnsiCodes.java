@@ -1,7 +1,7 @@
 package jflow.utils;
 
 public final class AnsiCodes {
-    public final static String TEAL = "\033[38;2;0;153;153;1m";
+    public final static String TEAL = "\033[38;2;0;153;153m";
     public final static String YELLOW = "\033[38;2;222;197;15m";
     public final static String ORANGE = "\033[38;2;255;165;1m";
     public final static String BLUE = "\033[94m";

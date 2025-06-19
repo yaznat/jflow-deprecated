@@ -457,7 +457,7 @@ public class Dataloader {
 
         // Copy data into the JMatrix
         for (int i = 0; i < numImages; i++) {
-            float[] image = testImages.get(i).getData().getMatrix();
+            float[] image = testImages.get(i).getData().unwrap();
             for (int j = 0; j < imageSize; j++) {
                 imageBatch.set(i * imageSize + j, image[j]);
             }
@@ -486,7 +486,7 @@ public class Dataloader {
 
         // Copy data into the JMatrix
         for (int i = 0; i < numImages; i++) {
-            float[] image = valImages.get(i).getData().getMatrix();
+            float[] image = valImages.get(i).getData().unwrap();
             for (int j = 0; j < imageSize; j++) {
                 imageBatch.set(i * imageSize + j, image[j]);
             }

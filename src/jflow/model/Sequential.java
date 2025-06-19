@@ -264,7 +264,7 @@ public class Sequential{
 
      /**
      * Retrieve the parameter gradients from the model. <p>
-     * For custom train steps, use: optimizer.apply(model.trainableVariables())
+     * For custom train steps, use: {@code optimizer.apply(model.trainableVariables())}
      */
     public HashMap<String, JMatrix[]> trainableVariables() {
         return layerGradients;
@@ -505,7 +505,7 @@ public class Sequential{
     private JMatrix oneHotEncode(int[] labels, int numClasses,
                                  boolean transpose) throws IllegalArgumentException {
         JMatrix oneHot = JMatrix.zeros(labels.length, numClasses, 1, 1);
-        float[] oneHotMatrix = oneHot.getMatrix();
+        float[] oneHotMatrix = oneHot.unwrap();
         for (int x = 0; x < labels.length; x++) {
             oneHotMatrix[x * numClasses + labels[x]] = 1.0f;
         }
@@ -602,7 +602,7 @@ public class Sequential{
     private int[] argmax0(JMatrix output) {
         int height = output.length();
         int width = output.channels() * output.height() * output.width();
-        float[] arr = output.getMatrix();
+        float[] arr = output.unwrap();
         int[] result = new int[width];
     
         for (int col = 0; col < width; col++) {
@@ -661,7 +661,7 @@ public class Sequential{
             .forEach(i -> {
                 jflow.model.Layer l = layers.get(i);
                 if (l instanceof TrainableLayer trainable) {
-                    for (JMatrix weight : trainable.getWeights()) {
+                    for (JMatrix weight : trainable.getParameters()) {
                         String filePath = path + "/" + trainable.getName() + "_" + weight.getName() + ".bin";
                         saveWeightToBinary(filePath, weight);
                     }
@@ -730,7 +730,7 @@ public class Sequential{
             .forEach(i -> {
                 jflow.model.Layer l = layers.get(i);
                 if (l instanceof TrainableLayer trainable) {
-                    JMatrix[] weights = trainable.getWeights();
+                    JMatrix[] weights = trainable.getParameters();
                     for (JMatrix weight : weights) {
                         String filePath = path + "/" + trainable.getName() + "_" + weight.getName() + ".bin";
                         loadWeightFromBinary(filePath, weight);
@@ -796,16 +796,13 @@ public class Sequential{
                 forward(empty, false);
             } else {
                 // Dense
-                JMatrix empty = JMatrix.zeros(1, first.getInputShape()[0], 1, 1);
+                JMatrix empty = JMatrix.zeros(1, first.getInputShape()[1], 1, 1);
                 forward(empty, false);
             }
         } else {
             // Run a 4D batch of 1 through the model
             JMatrix empty = JMatrix.zeros(
-                1, 
-                first.getInputShape()[0], 
-                first.getInputShape()[1], 
-                first.getInputShape()[2]
+                first.getInputShape()
             );
             forward(empty, false);
         }

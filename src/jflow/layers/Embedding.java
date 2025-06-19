@@ -8,9 +8,10 @@ import jflow.layers.templates.TrainableLayer;
 public class Embedding extends TrainableLayer {
     private int vocabSize;
     private int embedDim;
+    private float[] tiedWeights = null;
 
-    private JMatrix embeddings;         // shape: [vocabSize, embedDim]
-    private JMatrix gradEmbeddings;     // shape: same
+    private JMatrix embeddings;         // shape: (vocabSize, embedDim)
+    private JMatrix gradEmbeddings;     // shape: (vocabSize, embedDim)
 
     private JMatrix lastInput;          // save token IDs for backward
 
@@ -18,25 +19,43 @@ public class Embedding extends TrainableLayer {
         super("embedding");
         this.vocabSize = vocabSize;
         this.embedDim = embedDim;
-
-        this.embeddings = JMatrix
-            .randn(vocabSize, embedDim, 1, 1)
-            .multiply(0.02) // standard scale factor
-            .setName("embedding"); 
-        this.gradEmbeddings = JMatrix.zeros(vocabSize, embedDim, 1, 1).setName("dEmbedding");
     }
 
     public Embedding(int vocabSize, int embedDim, int[] inputShape) {
         this(vocabSize, embedDim);
-
         setInputShape(inputShape);
+    }
+
+    /**
+     * Set the weight matrix for weight tying.
+     * @param weights The weight matrix to use for this Embedding layer.
+     */
+    public Embedding weightTie(float[] weights, boolean removeFromParamCount) {
+        this.tiedWeights = weights;
+        if (removeFromParamCount) {
+            // Remove the matrix from numTrainableParameters
+            setNumTrainableParameters(0);
+        } else {
+            setNumTrainableParameters(weights.length);
+        }
+        return this;
     }
 
     @Override
     public void build(int IDnum) {
         super.build(IDnum);
 
-        setNumTrainableParameters(vocabSize * embedDim);
+        embeddings = JMatrix
+            .uniform(vocabSize, embedDim, 1, 1, -0.02, 0.02) // Standard range
+            .setName("embedding"); 
+        gradEmbeddings = JMatrix.zeros(vocabSize, embedDim, 1, 1).setName("dEmbedding");
+
+        if (tiedWeights == null) {
+            setNumTrainableParameters(vocabSize * embedDim);
+        } else {
+            embeddings.setMatrix(tiedWeights);
+            tiedWeights = null;
+        }
     }
 
     @Override
@@ -81,7 +100,7 @@ public class Embedding extends TrainableLayer {
     }
 
     @Override
-    public JMatrix[] getWeights() {
+    public JMatrix[] getParameters() {
         return new JMatrix[] {embeddings};
     }
 
@@ -97,7 +116,7 @@ public class Embedding extends TrainableLayer {
 
     @Override
     public int[] outputShape() {
-        return new int[] { 1, 1, embedDim, 1}; // variable batch/seq, fixed embed
+        return new int[] { 1, 1, embedDim, 1}; // Variable batch/seq, fixed embed
     }
 
  

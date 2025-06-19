@@ -38,11 +38,10 @@ public class GELU extends ShapePreservingLayer {
     @Override
     public JMatrix backward(JMatrix gradient) {
         int size = gradient.size();
-        JMatrix input = lastInput; // Use original input x
-        JMatrix dZ = input.zerosLike();
+        JMatrix dZ = lastInput.zerosLike();
         
         IntStream.range(0, size).parallel().forEach(i -> {
-            double x = input.get(i);
+            double x = lastInput.get(i);
             double derivative;
             
             // Derivative of GELU exact formula

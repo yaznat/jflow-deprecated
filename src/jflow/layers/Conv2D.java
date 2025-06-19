@@ -27,6 +27,13 @@ public class Conv2D extends TrainableLayer {
     final double epsilon = 1e-8;         // Small constant for numerical stability
     final double clipThreshold = 5.0;   // Global gradient clipping threshold
 
+    /**
+     * Represents a convolutional layer.
+     * 
+     * <p><b>Do not instantiate directly.</b> Use the static builder method:
+     * {@code import static jflow.model.builder.*;}
+     * and call {@code Conv2D(...)} instead of {@code new Conv2D(...)}.
+     */
     public Conv2D(int numFilters, int filterSize, int stride, String padding) {
         super("conv_2d");
         this.numFilters = numFilters;
@@ -37,6 +44,14 @@ public class Conv2D extends TrainableLayer {
             throw new IllegalArgumentException("Only same_padding and valid_padding allowed.");
         }
     }
+
+    /**
+     * Represents a convolutional layer.
+     * 
+     * <p><b>Do not instantiate directly.</b> Use the static builder method:
+     * {@code import static jflow.model.builder.*;}
+     * and call {@code Conv2D(...)} instead of {@code new Conv2D(...)}.
+     */
     public Conv2D(int numFilters, int filterSize, int stride, String padding, int[] inputShape) {
         this(numFilters, filterSize, stride, padding);
 
@@ -50,18 +65,16 @@ public class Conv2D extends TrainableLayer {
     }
 
     @Override
-    public void build(int IDnum) {
+    protected void build(int IDnum) {
         super.build(IDnum);
-        if (internalGetInputShape() != null) {
-            this.numChannels = internalGetInputShape()[0];
-        } else {
-            if (getPreviousLayer() == null) {
-                throw new IllegalStateException(
+        int[] shape = getInputShape();
+        if (shape == null) {
+            throw new IllegalStateException(
                     "In " + this.getClass().getSimpleName() + 
                     ": Cannot build the first layer without an input shape."
                 );
-            }
-            this.numChannels = getPreviousLayer().outputShape()[1];
+        } else {
+            this.numChannels = shape[1];
         }
         setNumTrainableParameters(numFilters * numChannels * filterSize * filterSize + numFilters);
 
@@ -84,7 +97,6 @@ public class Conv2D extends TrainableLayer {
 
         dFilters = JMatrix.zeros(numFilters, numChannels, filterSize, filterSize).setName("dFilters");
         dBiases = JMatrix.zeros(numFilters, 1, 1, 1).setName("dBiases");
-        
     }
 
     @Override
@@ -119,8 +131,8 @@ public class Conv2D extends TrainableLayer {
                 // Parallelize across filters
                 IntStream.range(0, numFilters).parallel().forEach(filterIndex -> {
                     int outputIdx = (imgIdx * numFilters + filterIndex) * outputHeight * outputWidth;
-                    convolveWithKernel(A.getMatrix(), outputIdx, input.getMatrix(), startIdx,
-                            filters.getMatrix(), filterIndex, biases.get(filterIndex), padding);
+                    convolveWithKernel(A.unwrap(), outputIdx, input.unwrap(), startIdx,
+                            filters.unwrap(), filterIndex, biases.get(filterIndex), padding);
                 });
             }
         } else {
@@ -129,8 +141,8 @@ public class Conv2D extends TrainableLayer {
                 for (int filterIndex = 0; filterIndex < numFilters; filterIndex++) {
                     int startIdx = imageIndex * numChannels * inputHeight * inputWidth;
                     int outputIdx = (imageIndex * numFilters + filterIndex) * outputHeight * outputWidth;
-                    convolveWithKernel(A.getMatrix(), outputIdx, input.getMatrix(), startIdx,
-                            filters.getMatrix(), filterIndex, biases.get(filterIndex), padding);
+                    convolveWithKernel(A.unwrap(), outputIdx, input.unwrap(), startIdx,
+                            filters.unwrap(), filterIndex, biases.get(filterIndex), padding);
                 }
             });
         }
@@ -140,7 +152,7 @@ public class Conv2D extends TrainableLayer {
 
     @Override
     public JMatrix backward(JMatrix input) {
-        // Calculate output dimensions based on padding and stride
+        // Calculate output dimensions
         int outputHeight, outputWidth;
         if (padding.equals("same_padding")) {
             outputHeight = (int)Math.ceil((double)inputHeight / stride);
@@ -153,7 +165,7 @@ public class Conv2D extends TrainableLayer {
         // Initialize dX with proper dimensions
         JMatrix dX = JMatrix.zeros(numImages, numChannels, inputHeight, inputWidth);
         
-        // Pre-calculate padding for same_padding
+        // Calculate padding for same_padding
         int padTop; int padLeft;
         if (padding.equals("same_padding")) {
             int padTotal_h = Math.max(0, (outputHeight - 1) * stride + filterSize - inputHeight);
@@ -165,79 +177,75 @@ public class Conv2D extends TrainableLayer {
             padLeft = 0;
         }
         
-        // Calculate gradients in batch
-        
-        // For each filter - Calculate bias and filter gradients
+        // Calculate bias gradients - parallelize across filters
         IntStream.range(0, numFilters).parallel().forEach(k -> {
-            // Calculate bias gradients
             float biasGrad = 0;
             for (int i = 0; i < numImages; i++) {
-                int dZFilterOffset = (i * numFilters + k) * outputHeight * outputWidth;
                 for (int oh = 0; oh < outputHeight; oh++) {
                     for (int ow = 0; ow < outputWidth; ow++) {
-                        biasGrad += input.get(dZFilterOffset + oh * outputWidth + ow);
+                        int dZIdx = (i * numFilters + k) * outputHeight * outputWidth + (oh * outputWidth + ow);
+                        biasGrad += input.get(dZIdx);
                     }
                 }
             }
             dBiases.set(k, biasGrad);
-            
-            // Calculate filter gradients
+        });
+        
+        // Calculate filter gradients - parallelize across filters
+        IntStream.range(0, numFilters).parallel().forEach(k -> {
             for (int c = 0; c < numChannels; c++) {
-                int filterChannelOffset = ((k * numChannels) + c) * filterSize * filterSize;
-                
                 for (int fh = 0; fh < filterSize; fh++) {
                     for (int fw = 0; fw < filterSize; fw++) {
                         float filterGrad = 0;
                         
-                        // Accumulate gradients from all images and all valid output positions
+                        // Sum over all images and output positions
                         for (int i = 0; i < numImages; i++) {
-                            int inputChannelOffset = (i * numChannels + c) * inputHeight * inputWidth;
-                            int dZFilterOffset = (i * numFilters + k) * outputHeight * outputWidth;
-                            
-                            // For each output position
                             for (int oh = 0; oh < outputHeight; oh++) {
                                 for (int ow = 0; ow < outputWidth; ow++) {
-                                    // Calculate the input position that this output position reads from
-                                    // when applying this specific filter element (fh, fw)
+                                    // Calculate corresponding input position
                                     int ih, iw;
-                                    
                                     if (padding.equals("same_padding")) {
-                                        ih = oh * stride - padTop + fh;
-                                        iw = ow * stride - padLeft + fw;
-                                    } else { // valid padding
+                                        ih = oh * stride + fh - padTop;
+                                        iw = ow * stride + fw - padLeft;
+                                    } else {
                                         ih = oh * stride + fh;
                                         iw = ow * stride + fw;
                                     }
                                     
-                                    // Check bounds - only accumulate if input position is valid
+                                    // Check if input position is valid
                                     if (ih >= 0 && ih < inputHeight && iw >= 0 && iw < inputWidth) {
-                                        int inputIdx = inputChannelOffset + (ih * inputWidth + iw);
-                                        int dZIdx = dZFilterOffset + (oh * outputWidth + ow);
+                                        int inputIdx = (i * numChannels + c) * inputHeight * inputWidth + (ih * inputWidth + iw);
+                                        int dZIdx = (i * numFilters + k) * outputHeight * outputWidth + (oh * outputWidth + ow);
                                         
-                                        // Gradient: dL/dW = input * dL/dOutput
                                         filterGrad += lastInput.get(inputIdx) * input.get(dZIdx);
                                     }
                                 }
                             }
                         }
                         
-                        dFilters.set(filterChannelOffset + (fh * filterSize + fw), filterGrad);
+                        // Use consistent indexing with forward pass
+                        int filterIdx = ((k * numChannels + c) * filterSize + fh) * filterSize + fw;
+                        dFilters.set(filterIdx, filterGrad);
                     }
                 }
             }
         });
         
-        // Calculate input gradients (dX)
+        // Calculate input gradients (dX) - parallelize with tiling for memory efficiency
         final int TILE_SIZE = 32;
         int numTilesH = (inputHeight + TILE_SIZE - 1) / TILE_SIZE;
         int numTilesW = (inputWidth + TILE_SIZE - 1) / TILE_SIZE;
-
-        // Create parallel tasks for each channel+tile combination
-        IntStream.range(0, numChannels * numTilesH * numTilesW).parallel().forEach(taskIdx -> {
-            int c = taskIdx / (numTilesH * numTilesW);
-            int tileIdx = taskIdx % (numTilesH * numTilesW);
-            int tileH = tileIdx / numTilesW;
-            int tileW = tileIdx % numTilesW;
+        
+        // Create parallel tasks for each image+channel+tile combination
+        IntStream.range(0, numImages * numChannels * numTilesH * numTilesW).parallel().forEach(taskIdx -> {
+            // Decode task index
+            int remaining = taskIdx;
+            int i = remaining / (numChannels * numTilesH * numTilesW);
+            remaining %= (numChannels * numTilesH * numTilesW);
+            int c = remaining / (numTilesH * numTilesW);
+            remaining %= (numTilesH * numTilesW);
+            int tileH = remaining / numTilesW;
+            int tileW = remaining % numTilesW;
             
             // Calculate tile boundaries
             int ih_start = tileH * TILE_SIZE;
@@ -245,71 +253,55 @@ public class Conv2D extends TrainableLayer {
             int iw_start = tileW * TILE_SIZE;
             int iw_end = Math.min(iw_start + TILE_SIZE, inputWidth);
             
-            // Process for all images in the batch
-            for (int i = 0; i < numImages; i++) {
-                int dXChannelOffset = (i * numChannels + c) * inputHeight * inputWidth;
-                
-                // Compute gradients for this tile
-                for (int ih = ih_start; ih < ih_end; ih++) {
-                    for (int iw = iw_start; iw < iw_end; iw++) {
-                        float sum = 0;
-                        
-                        // For each filter
-                        for (int k = 0; k < numFilters; k++) {
-                            int filterChannelBaseOffset = (k * numChannels + c) * filterSize * filterSize;
-                            int dZFilterOffset = (i * numFilters + k) * outputHeight * outputWidth;
-                            
-                            // For each filter position that could have contributed to this input gradient
-                            for (int fh = 0; fh < filterSize; fh++) {
-                                for (int fw = 0; fw < filterSize; fw++) {
-                                    // Calculate which output position this filter element would affect
-                                    // when applied to input position (ih, iw)
-                                    int oh, ow;
+            // Process this tile
+            for (int ih = ih_start; ih < ih_end; ih++) {
+                for (int iw = iw_start; iw < iw_end; iw++) {
+                    float inputGrad = 0;
+                    
+                    // Sum contributions from all filters
+                    for (int k = 0; k < numFilters; k++) {
+                        // For each filter position
+                        for (int fh = 0; fh < filterSize; fh++) {
+                            for (int fw = 0; fw < filterSize; fw++) {
+                                // Calculate which output position this input position contributes to
+                                // when convolved with this filter element
+                                int oh_numerator, ow_numerator;
+                                if (padding.equals("same_padding")) {
+                                    oh_numerator = ih + padTop - fh;
+                                    ow_numerator = iw + padLeft - fw;
+                                } else {
+                                    oh_numerator = ih - fh;
+                                    ow_numerator = iw - fw;
+                                }
+                                
+                                // Check if this creates a valid output position with the given stride
+                                if (oh_numerator >= 0 && ow_numerator >= 0 && 
+                                    oh_numerator % stride == 0 && ow_numerator % stride == 0) {
                                     
-                                    if (padding.equals("same_padding")) {
-                                        // Check if this input position contributes to any output
-                                        int numerator_h = ih + padTop - fh;
-                                        int numerator_w = iw + padLeft - fw;
-                                        
-                                        if (numerator_h % stride != 0 || numerator_w % stride != 0) {
-                                            continue; // No contribution to any output
-                                        }
-                                        
-                                        oh = numerator_h / stride;
-                                        ow = numerator_w / stride;
-                                    } else { // valid padding
-                                        int numerator_h = ih - fh;
-                                        int numerator_w = iw - fw;
-                                        
-                                        if (numerator_h % stride != 0 || numerator_w % stride != 0 || 
-                                            numerator_h < 0 || numerator_w < 0) {
-                                            continue; // No contribution to any output
-                                        }
-                                        
-                                        oh = numerator_h / stride;
-                                        ow = numerator_w / stride;
-                                    }
+                                    int oh = oh_numerator / stride;
+                                    int ow = ow_numerator / stride;
                                     
                                     // Check if output position is valid
-                                    if (oh >= 0 && oh < outputHeight && ow >= 0 && ow < outputWidth) {
-                                        int filterPos = filterChannelBaseOffset + (fh * filterSize + fw);
-                                        int dZPos = dZFilterOffset + (oh * outputWidth + ow);
+                                    if (oh < outputHeight && ow < outputWidth) {
+                                        int filterIdx = ((k * numChannels + c) * filterSize + fh) * filterSize + fw;
+                                        int dZIdx = (i * numFilters + k) * outputHeight * outputWidth + (oh * outputWidth + ow);
                                         
-                                        sum += filters.get(filterPos) * input.get(dZPos);
+                                        inputGrad += filters.get(filterIdx) * input.get(dZIdx);
                                     }
                                 }
                             }
                         }
-                        int dXPos = dXChannelOffset + (ih * inputWidth + iw);
-                        dX.set(dXPos, sum);
                     }
+                    
+                    int dXIdx = (i * numChannels + c) * inputHeight * inputWidth + (ih * inputWidth + iw);
+                    dX.set(dXIdx, inputGrad);
                 }
             }
         });
         
-        // Apply adaptive gradient scaling
+        // Apply gradient clipping
         adaptiveScale(dFilters, dBiases, dX);
-    
+        
         return trackGradient(dX);
     }
     
@@ -404,7 +396,7 @@ public class Conv2D extends TrainableLayer {
     
     
     @Override
-    public JMatrix[] getWeights() {
+    public JMatrix[] getParameters() {
         return new JMatrix[]{filters, biases};
     }
 
@@ -416,17 +408,13 @@ public class Conv2D extends TrainableLayer {
 
     @Override
     public int[] outputShape() {
-        int[] outputShape = null;
+        int[] outputShape;
         if (getOutput() != null) {
             outputShape = getOutput().shape();
         } else {
-            int[] prevShape;
-            if (getPreviousLayer() == null) {
-                int[] inputShape = internalGetInputShape();
-                prevShape = new int[]{-1, inputShape[0], inputShape[1], inputShape[2]};
-            } else {
-                prevShape = getPreviousLayer().outputShape().clone();
-            }
+            int[] inputShape = getInputShape();
+            int[] prevShape = new int[]{1, inputShape[1], inputShape[2], inputShape[3]};
+            
             if (padding.equals("same_padding")) {
                 outputShape = new int[]{
                     prevShape[0],
