@@ -181,15 +181,15 @@ public abstract class Layer {
     }
 
     protected void printForwardDebug() {
-        printDebug(forwardDebugData());
+        JMatrix[] debugData = forwardDebugData();
+        if (!(debugData == null)) {
+            String title = getName() + " output";
+            Callbacks.printStats(title, debugData);
+        }
     }
 
     protected void printBackwardDebug() {
-        printDebug(backwardDebugData());
-    }
-
-
-    private void printDebug(JMatrix[] debugData) {
+        JMatrix[] debugData = backwardDebugData();
         if (!(debugData == null)) {
             String title = getName() + " gradients";
             Callbacks.printStats(title, debugData);
