@@ -7,15 +7,9 @@
 ### Strengths  
 
 #### 🧠 Memory Optimization  
-- **Low Memory Mode**: Train large models with limited resources (ideal for datasets larger than system memory).  
-    - Example: **CIFAR-10 CNN**, 1M parameters, < 2GB RAM (with low memory mode enabled)  
+- **Memory Options**: Train large models on large datasets with limited resources.  
+    - Example: **CIFAR-10 CNN**, 1M parameters, < 2GB RAM (with image caching disabled)  
     - Example: **GPT-2 Small**, 124M parameters, < 9GB RAM for a sequence length of 512 (with gradient storage disabled)  
-#### ⚡ Performance Benchmarks
-
-##### Training GPT-2 Small (124M parameters) - Apple M4 Max  
-- **Allocated 9GB RAM:** ~480,000 tokens/hour  
-- **Allocated 16GB RAM:** ~550,000 tokens/hour  
-ℹ️ Differences due to Java memory allocation, not low memory mode. Disabling gradient storage reduces memory but does not affect speed.  
 #### Low-level Control & Debugging  
 - Clean, Keras-similar UI for model training.  
 - Implement custom training steps easily.  
