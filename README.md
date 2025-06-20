@@ -10,7 +10,7 @@
 - **Memory Options**: Train large models on large datasets with limited resources.  
     - Example: **CIFAR-10 CNN**, 1M parameters, < 2GB RAM (with image caching disabled)  
     - Example: **GPT-2 Small**, 124M parameters, < 9GB RAM for a sequence length of 512 (with gradient storage disabled)  
-#### Low-level Control & Debugging  
+#### 🔍 Low-level Control & Debugging  
 - Clean, Keras-similar UI for model training.  
 - Implement custom training steps easily.  
 - Debug mode for inspecting gradients.  
