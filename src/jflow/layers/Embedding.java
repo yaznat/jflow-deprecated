@@ -111,12 +111,12 @@ public class Embedding extends TrainableLayer {
 
     @Override
     public void updateParameters(JMatrix[] updates) {
-        this.embeddings.add(updates[0]);
+        embeddings.subtractInPlace(updates[0]);
     }
 
     @Override
     public int[] outputShape() {
-        return new int[] { 1, 1, embedDim, 1}; // Variable batch/seq, fixed embed
+        return new int[] {1, 1, embedDim}; // Variable batch/seq_len, fixed embed
     }
 
  
