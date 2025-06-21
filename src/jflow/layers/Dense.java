@@ -174,11 +174,11 @@ public class Dense extends TrainableLayer {
         }
         // Calculate dWeights and dBiases
         JMatrix weightGrad = gradient.matmul(lastInput.transpose2D(), true); // Scaled matmul product
-        dWeights.setMatrix(weightGrad.unwrap()); // Avoid reassigning reference
+        dWeights.addInPlace(weightGrad); // Accumulate updates
 
         if (useBias) {
             JMatrix biasGrad = gradient.sum(0).multiplyInPlace(1.0 / gradient.length()); // Scaled sum
-            dBiases.setMatrix(biasGrad.unwrap()); // Avoid reassigning reference
+            dBiases.addInPlace(biasGrad); // Accumulate updates
         }
 
         // Free memory
