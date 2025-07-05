@@ -66,7 +66,7 @@ public class BatchNorm extends TrainableLayer {
         }
         
         if (getPreviousShapeInfluencer() instanceof Dense) {
-            input = input.transpose2D();
+            input = input.T();
         }
         // Ensure dx and dxHat have the right dimensions
         if (dx == null || dx.length() != input.length() || dx.channels() != input.channels()) {

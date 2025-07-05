@@ -29,7 +29,7 @@ public class Reshape extends ShapeAlteringLayer{
 
         // Account for dense layers being transposed
         if (getPreviousShapeInfluencer() instanceof Dense) {
-            input = input.transpose2D();
+            input = input.T();
         }
 
         return trackOutput(input.reshape(input.length(), newChannels, newHeight, newWidth), training);

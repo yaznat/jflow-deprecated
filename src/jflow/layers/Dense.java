@@ -20,6 +20,7 @@ public class Dense extends TrainableLayer {
     private boolean useBias = true;
     private boolean useCustomScale = false;
 
+    private boolean scaleDuringMatmul = true;
 
     /**
      * Represents a fully connected layer.
@@ -88,8 +89,22 @@ public class Dense extends TrainableLayer {
     }
 
     /**
+     * Indicate if scaling by 1/k should be applied during matmul().
+     * Enabled by default. <p>
+     * Recommend for image data.
+     * Not recommended for LLMs.
+     * @param enabled Enable or disable scaling during matmul().
+     */
+    public Dense scaleDuringMatmul(boolean enabled) {
+        scaleDuringMatmul = enabled;
+        return this;
+    }
+
+    /**
      * Set the weight matrix for weight tying.
      * @param weights The weight matrix to use for this Dense layer.
+     * @param removeFromParamCount Indicates if the weight matrix of this Dense 
+     * layer should be removed from the parameter count.
      */
     public Dense weightTie(float[] weights, boolean removeFromParamCount) {
         this.tiedWeights = weights;
@@ -114,7 +129,7 @@ public class Dense extends TrainableLayer {
                     ": Cannot build the first layer without an input shape."
                 );
         } else {
-            inputSize = inputShape[1]; // Channel dimension
+            inputSize = inputShape[1]; // Feature dimension
         }
 
         // Xavier initialization or custom
@@ -146,9 +161,10 @@ public class Dense extends TrainableLayer {
 
     @Override
     public JMatrix forward(JMatrix input, boolean training) {
+        // Transpose if necessary
         if (input.length() != 
-                weights.channels() * weights.height() * weights.width()) {
-            input = input.transpose2D();
+                weights.shape(1) * weights.shape(2) * weights.shape(3)) {
+            input = input.T();
         }
         // Store lastInput for backpropagation
         if (training) {
@@ -156,10 +172,10 @@ public class Dense extends TrainableLayer {
         }
 
         // Calculate forward output
-        JMatrix output = weights.matmul(input, true); // Scaled matmul product
+        JMatrix output = weights.matmul(input, scaleDuringMatmul); 
 
         if (useBias) {
-            applyBiasByRow(output, biases); 
+            addBiasPerOutputFeature(output, biases); 
         }
     
         return trackOutput(output, training);
@@ -168,12 +184,12 @@ public class Dense extends TrainableLayer {
     @Override
     public JMatrix backward(JMatrix gradient) {
         // Transpose if necessary
-        if (gradient.channels() * gradient.height() * gradient.width() != 
-                lastInput.channels() * lastInput.height() * lastInput.width()) {
-            gradient = gradient.transpose2D();
+        if (gradient.shape(1) * gradient.shape(2) * gradient.shape(3) != 
+                lastInput.shape(1) * lastInput.shape(2) * lastInput.shape(3)) {
+            gradient = gradient.T();
         }
         // Calculate dWeights and dBiases
-        JMatrix weightGrad = gradient.matmul(lastInput.transpose2D(), true); // Scaled matmul product
+        JMatrix weightGrad = gradient.matmul(lastInput.T(), scaleDuringMatmul);
         dWeights.addInPlace(weightGrad); // Accumulate updates
 
         if (useBias) {
@@ -188,7 +204,7 @@ public class Dense extends TrainableLayer {
         adaptiveGradientClip(weights, biases, dWeights, dBiases, 1e-2);
 
         // Calculate loss w.r.t previous layer
-        JMatrix dX = weights.transpose2D().matmul(gradient, true); // Scaled matmul product
+        JMatrix dX = weights.T().matmul(gradient, scaleDuringMatmul);
 
         return trackGradient(dX);
     }
@@ -226,13 +242,15 @@ public class Dense extends TrainableLayer {
         return outputShape;
     }
 
-    private void applyBiasByRow(JMatrix output, JMatrix bias) {
-        int rows = output.length();
-        int cols = output.channels() * output.height() * output.width();
-        
-        IntStream.range(0, rows).parallel().forEach(i -> {
-            for (int j = 0; j < cols; j++) { 
-                output.set(i * cols + j, output.get(i * cols + j) + bias.get(i));
+    private void addBiasPerOutputFeature(JMatrix output, JMatrix bias) {
+        // Transposed
+        int batchSize = output.shape(1) * output.shape(2) * output.shape(3);
+        int outputDim = output.shape(0);
+    
+        IntStream.range(0, batchSize).parallel().forEach(i -> {
+            for (int j = 0; j < outputDim; j++) {
+                int idx = i * outputDim + j;
+                output.set(idx, output.get(idx) + bias.get(j));
             }
         });
     }

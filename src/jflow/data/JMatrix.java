@@ -198,8 +198,21 @@ public class JMatrix {
     }
 
     /**
+     * The size of the JMatrix along a specified axis.
+     */
+    public int shape(int axis) {
+        if (axis < 0 || axis > 3) {
+            throw new IllegalArgumentException(
+                "Invalid axis: " + axis
+                + ". Options: (0,1,2,3)"
+            );
+        }
+        return shape()[axis];
+    }
+
+    /**
      * The shape of the JMatrix as a String.
-     * @returns {length, channels, height, width} visually organized into a String.
+     * @return {length, channels, height, width} visually organized into a String.
      */
     public String shapeAsString() {
         return "(" + length + "," + channels + "," + height + "," + width + ")";
@@ -428,8 +441,8 @@ public class JMatrix {
      * @return                          A new JMatrix with the changes applied.
      */
     public JMatrix reshape(int newLength, int newChannels, int newHeight, int newWidth) {
-        int numItems = size();
-        int newNumItems = newLength * newChannels * newHeight * newWidth;
+        long numItems = size();
+        long newNumItems = (long)newLength * newChannels * newHeight * newWidth;
 
         if (numItems != newNumItems) {
             throw new IllegalArgumentException(
@@ -648,9 +661,10 @@ public class JMatrix {
     
     /**
      * Creates a one-hot encoded representation of token indices.
-     * 
+     *
      * @param indices A JMatrix containing integer token indices
-     * @param vocabSize The size of the vocabulary (number of possible token values)
+     * @param numLabels The size of the vocabulary (number of possible token values)
+     * @param smoothing Label smoothing factor (0.0 for no smoothing, typical values 0.1-0.3)
      * @return A new JMatrix with one-hot encoding
      */
     public static JMatrix oneHot(JMatrix indices, int numLabels, float smoothing) {
@@ -658,17 +672,17 @@ public class JMatrix {
         int seqLen = indices.shape()[1];
         
         float smoothValue = smoothing / numLabels;
-        JMatrix oneHotMatrix = JMatrix.zeros(batchSize, seqLen, numLabels, 1);
-
-        oneHotMatrix.fill(smoothValue);
+        float hotValue = 1.0f - smoothing + smoothValue;
         
-        // Fill in the one-hot encoded values
+        JMatrix oneHotMatrix = JMatrix.zeros(batchSize, seqLen, numLabels, 1);
+        oneHotMatrix.fill(smoothValue);
+
         for (int batch = 0; batch < batchSize; batch++) {
             for (int seq = 0; seq < seqLen; seq++) {
                 int tokenIndex = (int)indices.get(batch, seq, 0, 0);
-                
+
                 if (tokenIndex >= 0 && tokenIndex < numLabels) {
-                    oneHotMatrix.set(batch, seq, tokenIndex, 0, 1.0f - smoothing + smoothValue);
+                    oneHotMatrix.set(batch, seq, tokenIndex, 0, hotValue);
                 }
             }
         }
@@ -701,60 +715,80 @@ public class JMatrix {
     }
 
     /**
-     * Transpose a 2D matrix, swapping the batch dimension (N)
-     * with the feature dimension (C * H * W).
-     *
-     * @return A new JMatrix with shape (C * H * W, N, 1, 1)
+     * Perform a 2D transposition, treating the matrix as rows (N)
+     * and cols (C * H * W).
+     * <p>
+     * Equivalent to {@code permute(1,0)}
+     * For higher-dimensional tensors, use {@code permute(int...)}
+     * 
+     * @return A new JMatrix with shape (cols, rows, 1, 1).
      */
-    public JMatrix transpose2D() {
+    public JMatrix T() {
         int oldHeight = length;
         int oldWidth = channels * height * width;
         int newHeight = oldWidth;
         int newWidth = oldHeight;
 
-        float[] transposed = new float[size()];
+        float[] result = new float[size()];
 
-        MatrixTranspose.transpose2DMatrix(matrix, oldHeight, oldWidth,transposed);
+        MatrixOps.transpose2DMatrixByDims(
+            matrix, 
+            oldHeight, oldWidth,
+            1, 0,
+            result
+        );
 
-        // Assign all features to channels for simplicity
-        return JMatrix.wrap(transposed, newHeight, newWidth, 1, 1);
+        // Assign all features to channels (C) for 2D use case
+        return JMatrix.wrap(result, newHeight, newWidth, 1, 1);
     }
 
     /**
-     * Matrix tranpose for 3D use cases.
-     * Transposes each (C, H * W) item in the batch into (H * W, C).
+     * Perform a permutation for 3D use cases, 
+     * treating the matrix as batch (N), rows (C), and cols (H*W)
+     * @param axis1 the axis to use as the batch dimension.
+     * @param axis2 the axis to use as the row dimension.
+     * @param axis3 the axis to use as the column dimension.
      * 
-     * This is a batch-wise matrix transpose: for each item in the batch,
-     * it swaps the feature and spatial axes. Commonly used before batchMatmul().
-     *
-     * @return A new JMatrix with shape (N, H * W, C, 1)
-     */
-    public JMatrix transpose3D() {
-        int batch = length;
-        int oldDim1 = channels;           // C
-        int oldDim2 = height * width;     // H * W
-        
-        int newDim1 = oldDim2;            // H * W becomes first dimension
-        int newDim2 = oldDim1;            // C becomes second dimension
-        
-        float[] transposed = new float[size()];
-        MatrixTranspose.transpose3DMatrix(matrix, batch, oldDim1, oldDim2, transposed);
-        
-        return JMatrix.wrap(transposed, batch, newDim1, newDim2, 1);
-    }
-
-    /**
-     * Transpose the matrix by rearranging dimensions according to a particular order.
-     * @param axis1                         The dimension to use as the first dimension (0=N, 1=C, 2=H, 3=W)
-     * @param axis2                         The dimension to use as the second dimension (0=N, 1=C, 2=H, 3=W)
-     * @param axis3                         The dimension to use as the third dimension (0=N, 1=C, 2=H, 3=W)
-     * @param axis4                         The dimension to use as the fourth dimension (0=N, 1=C, 2=H, 3=W)
      * @throws IllegalArgumentException     If axis values are not a permuation of (0, 1, 2, 3).
      */
-    // NOTE: THIS FUNCTION IS PARTIALLY GENERATED BY CLAUDE.AI
-    public JMatrix transpose(int axis1, int axis2, int axis3, int axis4) {
+    public JMatrix permute(int axis1, int axis2, int axis3) {
+        int oldBatch = length;
+        int oldRows = channels;         
+        int oldCols = height * width;           
+
         float[] result = new float[size()];
-        MatrixTranspose.transpose4DMatrixByDims(
+
+        MatrixOps.transpose3DMatrixByDims(
+            matrix, 
+            oldBatch, oldRows, oldCols, 
+            axis1, axis2, axis3,
+            result);
+        
+        int[] dims = shape();
+
+        int[] dims3D = new int[] {
+            dims[0], 
+            dims[1],
+            dims[2] * dims[3]
+        };
+        int newBatch = dims3D[axis1];
+        int newRows = dims3D[axis2];
+        int newCols = dims3D[axis3];
+
+        return JMatrix.wrap(result, newBatch, newRows, newCols, 1);
+    }
+
+    /**
+     * Perform a 4D permutation.
+     * @param axis1                         The dimension to use as the batch dimension.
+     * @param axis2                         The dimension to use as the channel dimension.
+     * @param axis3                         The dimension to use as the height dimension.
+     * @param axis4                         The dimension to use as the width dimension.
+     * @throws IllegalArgumentException     If axis values are not a permuation of (0, 1, 2, 3).
+     */
+    public JMatrix permute(int axis1, int axis2, int axis3, int axis4) {
+        float[] result = new float[size()];
+        MatrixOps.transpose4DMatrixByDims(
             matrix, 
             length, channels, height, width, 
             axis1, axis2, axis3, axis4, 
@@ -781,7 +815,7 @@ public class JMatrix {
     }
 
     /**
-     * Returns an exact copy of this JMatrix.
+     * An exact copy of this JMatrix.
      */
     public JMatrix copy() {
         JMatrix copy = JMatrix.wrap(matrix.clone(), shape());

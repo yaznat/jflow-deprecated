@@ -304,6 +304,7 @@ public class Sequential{
         }
         return this;
     }
+
     /**
      * Train the model.
      * @param loader                A Dataloader containing train images.
@@ -510,7 +511,7 @@ public class Sequential{
             oneHotMatrix[x * numClasses + labels[x]] = 1.0f;
         }
         if (transpose) {
-            oneHot = oneHot.transpose2D();
+            oneHot = oneHot.T();
         }
         return oneHot;
     }
