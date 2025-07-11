@@ -16,13 +16,13 @@
 - Debug mode for inspecting gradients.  
   
 Simple Neural Network Debug    
-![Gradient Debug Example](readme-images/Gradient-Debug-Example.png)  
+![Gradient Debug Example](readme-images/Debug-Example.png)  
 
 ### Key Features  
 
 #### Dataloader  
 - Load images from CSV or directory.  
-- Train-test-split and data batching.  
+- Train-test-val-split and data batching.  
 
 #### Transform  
 - Normalize and augment images with built-in functions.  
@@ -36,7 +36,7 @@ Simple Neural Network Debug
 
 #### Supported Layers  
 - **Dense**  
-- **Conv2D**  
+- **Conv2D**  (Under development)  
 - **MaxPool2D**  
 - **GlobalAveragePooling2D**  
 - **Upsampling2D**  
