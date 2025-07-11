@@ -34,7 +34,7 @@ public class Builder {
      * @param input                 The 1D input shape to the Dense layer.
      */
     public static Dense Dense(int size, InputShape input) {
-        return new Dense(size, input.getShape());
+        return new Dense(size, input.getShape(), true);
     }
 
     /**
@@ -51,7 +51,7 @@ public class Builder {
      * @param size                  The output size of the Dense layer.
      */
     public static Dense Dense(int size) {
-        return new Dense(size);
+        return new Dense(size, null, true);
     }
 
     /**
@@ -60,7 +60,7 @@ public class Builder {
      * @param useBias               Whether or not to use biases.
      */
     public static Dense Dense(int size, boolean useBias) {
-        return new Dense(size, useBias);
+        return new Dense(size, null, useBias);
     }
     /**
      * A Conv2D layer.

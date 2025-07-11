@@ -12,58 +12,17 @@ public class Dense extends TrainableLayer {
     private JMatrix biases;
     private JMatrix dBiases;
 
-    private float[] tiedWeights = null;
-
     private int outputSize;
-    private double customInitScale;
-
     private boolean useBias = true;
-    private boolean useCustomScale = false;
 
     private boolean scaleDuringMatmul = true;
+    private float[] tiedWeights = null;
 
-    /**
-     * Represents a fully connected layer.
-     * 
-     * <p><b>Do not instantiate directly.</b> Use the static builder method:
-     * {@code import static jflow.model.builder.*;}
-     * and call {@code Dense(...)} instead of {@code new Dense(...)}.
-     */
-    public Dense(int size) {
-        super("dense");
-        this.outputSize = size;
-    }
-
-    /**
-     * Represents a fully connected layer.
-     * 
-     * <p><b>Do not instantiate directly.</b> Use the static builder method:
-     * {@code import static jflow.model.builder.*;}
-     * and call {@code Dense(...)} instead of {@code new Dense(...)}.
-     */
-    public Dense(int size, boolean useBias) {
-        this(size);
-        this.useBias = useBias;
-    }
-
-    /**
-     * Represents a fully connected layer.
-     * 
-     * <p><b>Do not instantiate directly.</b> Use the static builder method:
-     * {@code import static jflow.model.builder.*;}
-     * and call {@code Dense(...)} instead of {@code new Dense(...)}.
-     */
-    public Dense(int size, int[] inputShape) {
-        this(size);
-
-        if (inputShape.length != 2) { // + 1 for internal batch dimension
-            throw new IllegalArgumentException(
-                "Dense input shape should have 1 dimension. Got: "
-                + (inputShape.length - 1) + "."
-            );
-        }
-        setInputShape(inputShape);
-    }
+    // For custom weight initialization
+    private boolean useUniform = false;
+    private boolean useNormal = false;
+    private double[] uniformRange;
+    private double[] normalDist;
 
     /**
      * Represents a fully connected layer.
@@ -73,27 +32,40 @@ public class Dense extends TrainableLayer {
      * and call {@code Dense(...)} instead of {@code new Dense(...)}.
      */
     public Dense(int size, int[] inputShape, boolean useBias) {
-        this(size, inputShape);
+        super("dense");
+        this.outputSize = size;
         this.useBias = useBias;
+        setInputShape(inputShape);
     }
 
     /**
-     * Initialize the weights of this Dense layer with a custom scale.
-     * @param scale The magnitude of initialization. 
-     * Parameters will be in the range [-scale, scale].
+     * Initialize the weights of this Dense layer in a uniform range.
+     * @param min the minimum value.
+     * @param max the maximum value.
      */
-    public Dense customInitScale(double scale) {
-        useCustomScale = true;
-        customInitScale = scale;
+    public Dense initUniform(double min, double max) {
+        useUniform = true;
+        uniformRange = new double[]{min, max};
         return this;
     }
 
     /**
-     * Indicate if scaling by 1/k should be applied during matmul().
+     * Initialize the weights of this Dense layer in a normal distribution.
+     * @param mean the mean of the distribution.
+     * @param stddev the standard deviation of the distribution.
+     */
+    public Dense initNormal(double mean, double stddev) {
+        useNormal = true;
+        normalDist = new double[]{mean, stddev};
+        return this;
+    }
+
+    /**
+     * Indicate if scaling by 1/k should be applied during matrix multiplication.
      * Enabled by default. <p>
-     * Recommend for image data.
-     * Not recommended for LLMs.
-     * @param enabled Enable or disable scaling during matmul().
+     * Recommended for image data.
+     * Not recommended for transformers.
+     * @param enabled Enable or disable scaling during matrix multiplication.
      */
     public Dense scaleDuringMatmul(boolean enabled) {
         scaleDuringMatmul = enabled;
@@ -132,19 +104,7 @@ public class Dense extends TrainableLayer {
             inputSize = inputShape[1]; // Feature dimension
         }
 
-        // Xavier initialization or custom
-        double scale = (useCustomScale) ? customInitScale : Math.sqrt(2.0 / (inputSize + outputSize));
-
-        double min = -1.0 * scale;
-        double max = scale;
-
-        weights = JMatrix.uniform(outputSize, inputSize, 1, 1, min, max).setName("weights");
-        dWeights = JMatrix.zeros(outputSize, inputSize, 1, 1).setName("dWeights");
-
-        if (useBias) {
-            biases = JMatrix.uniform(outputSize, 1, 1, 1, min, max).setName("biases");
-            dBiases = JMatrix.zeros(outputSize, 1, 1, 1).setName("dBiases");
-        }   
+        initParams(inputSize);
 
         if (tiedWeights == null) {
             int numTrainableParameters = 0;
@@ -157,6 +117,63 @@ public class Dense extends TrainableLayer {
             weights.setMatrix(tiedWeights);
             tiedWeights = null;
         }
+    }
+
+    private void initParams(int inputSize) {
+        // Check for custom initialization
+        if (useNormal) {
+            weights = JMatrix.normal(
+                outputSize, inputSize, 1, 1, 
+                normalDist[0], normalDist[1]
+            );
+            if (useBias) {
+                biases = JMatrix.normal(
+                    outputSize, 1, 1, 1, 
+                    normalDist[0], normalDist[1]
+                );
+            }
+        } else if (useUniform) {
+            weights = JMatrix.uniform(
+                outputSize, inputSize, 1, 1, 
+                uniformRange[0], uniformRange[1]
+            );
+            if (useBias) {
+                biases = JMatrix.uniform(
+                    outputSize, 1, 1, 1, 
+                    uniformRange[0], uniformRange[1]
+                );
+            }
+        } else {
+            // Xavier initialization
+            double scale = Math.sqrt(2.0 / (inputSize + outputSize)); 
+            double min = -1.0 * scale;
+            double max = scale;
+
+            weights = JMatrix.uniform(
+                outputSize, inputSize, 1, 1, 
+                min, max
+            );
+            if (useBias) {
+                biases = JMatrix.uniform(
+                    outputSize, 1, 1, 1, 
+                    min, max
+                );
+            }
+        }
+        weights.setName("weights");
+
+        dWeights = JMatrix.zeros(
+            outputSize, inputSize, 1, 1
+        )
+        .setName("dWeights");
+
+        if (useBias) {
+            biases.setName("biases");
+            dBiases = JMatrix.zeros(
+                outputSize, 1, 1, 1
+            )
+            .setName("dBiases");
+        }   
     }
 
     @Override
@@ -188,6 +205,7 @@ public class Dense extends TrainableLayer {
                 lastInput.shape(1) * lastInput.shape(2) * lastInput.shape(3)) {
             gradient = gradient.T();
         }
+
         // Calculate dWeights and dBiases
         JMatrix weightGrad = gradient.matmul(lastInput.T(), scaleDuringMatmul);
         dWeights.addInPlace(weightGrad); // Accumulate updates
@@ -208,6 +226,8 @@ public class Dense extends TrainableLayer {
 
         return trackGradient(dX);
     }
+
+    
 
     @Override
     public void updateParameters(JMatrix[] parameterUpdates) {
