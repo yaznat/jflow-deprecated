@@ -16,7 +16,7 @@
 - Debug mode for inspecting gradients.  
   
 Simple Neural Network Debug    
-![Gradient Debug Example](readme-images/Debug-Example.png)  
+![Gradient Debug Example](readme-images/NN-Debug-Example.png)  
 
 ### Key Features  
 
