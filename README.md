@@ -16,7 +16,7 @@
 - Debug mode for inspecting gradients.  
   
 Simple Neural Network Debug    
-![Gradient Debug Example](readme-images/Debug-Example.png)  
+![Gradient Debug Example](readme-images/Gradient-Debug-Example.png)  
 
 ### Key Features  
 
@@ -48,7 +48,9 @@ Simple Neural Network Debug
 
 #### Supported Activation Functions  
 - **ReLU**, **LeakyReLU**, **Sigmoid**, **Tanh**, **Softmax**, **Swish**, **Mish**, **GELU**.  
-- **Custom Activation**: Easy to implement.  
+
+#### FunctionalLayer  
+- Build custom classes with internal JFlow layers. Easy to implement.  
 
 #### Supported Optimizers  
 - **SGD**, **AdaGrad**, **RMSprop**, **Adam**.  
