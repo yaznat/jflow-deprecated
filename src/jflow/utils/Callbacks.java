@@ -36,28 +36,47 @@ public class Callbacks {
                 AnsiCodes.BLUE + "╭────────────────────" + AnsiCodes.BOLD + 
                 debugTitle + AnsiCodes.RESET + AnsiCodes.BLUE + "────────────────────╮");
 
-            // Iterate over matrices
-            for (JMatrix data : debugData) {
-                System.out.print(AnsiCodes.BLUE + "│ ");
-                // Print name
-                String dataName = data.getName();
-                System.out.print(AnsiCodes.TEAL + dataName);
-                // Print statistics
-                System.out.print(separator + AnsiCodes.ORANGE + "shape " + AnsiCodes.TEAL + 
-                    "(N, C, H, W)" + AnsiCodes.ORANGE + ": " + AnsiCodes.WHITE + data.shapeAsString()); 
-                System.out.print(separator + AnsiCodes.ORANGE + "absmean: " + AnsiCodes.WHITE + (float)data.absMean());
-                System.out.print(separator + AnsiCodes.ORANGE + "L1: " + AnsiCodes.WHITE + (float)data.l1Norm());
-                System.out.print(separator + AnsiCodes.ORANGE + "L2: " + AnsiCodes.WHITE + (float)data.l2Norm());
+        // Find maximum lengths for monospacing
+        int numStats = 5;
+        int[] maxLengths = new int[numStats];
+        for (JMatrix data : debugData) {
+            maxLengths[0] = Math.max(maxLengths[0], data.getName().length());
+            maxLengths[1] = Math.max(maxLengths[1], data.shapeAsString().length());
+            maxLengths[2] = Math.max(maxLengths[2], String.valueOf((float)data.absMean()).length());
+            maxLengths[3] = Math.max(maxLengths[3], String.valueOf((float)data.l1Norm()).length());
+            maxLengths[4] = Math.max(maxLengths[4], String.valueOf((float)data.l2Norm()).length());
+        }
+        // Iterate over matrices
+        for (JMatrix data : debugData) {
+            System.out.print(AnsiCodes.BLUE + "│ ");
+            String[] stats = new String[numStats];
+            stats[0] = data.getName();
+            stats[1] = data.shapeAsString();
+            stats[2] = String.valueOf((float)data.absMean());
+            stats[3] = String.valueOf((float)data.l1Norm());
+            stats[4] = String.valueOf((float)data.l2Norm());
+               
+            for (int i = 0; i < numStats; i++) {
+                while (stats[i].length() < maxLengths[i]) {
+                    stats[i] += " ";
+                }
+            }
+            // Print statistics
+            System.out.print(AnsiCodes.TEAL + stats[0]);
+            System.out.print(separator + AnsiCodes.ORANGE + "shape " + AnsiCodes.TEAL + 
+                "(N, C, H, W)" + AnsiCodes.ORANGE + ": " + AnsiCodes.WHITE + stats[1]); 
+            System.out.print(separator + AnsiCodes.ORANGE + "absMean: " + AnsiCodes.WHITE + stats[2]);
+            System.out.print(separator + AnsiCodes.ORANGE + "l1: " + AnsiCodes.WHITE + stats[3]);
+            System.out.print(separator + AnsiCodes.ORANGE + "l2: " + AnsiCodes.WHITE + stats[4]);
 
-                System.out.println();
-            }
-            String closer = AnsiCodes.BLUE + "╰────────────────────";
-            for (int i = 0; i < debugTitle.length(); i++) {
-                closer += "─";
-            }
-            closer += "────────────────────╯" + AnsiCodes.RESET;
-            System.out.println(closer);
-        
+            System.out.println();
+        }
+        String closer = AnsiCodes.BLUE + "╰────────────────────";
+        for (int i = 0; i < debugTitle.length(); i++) {
+            closer += "─";
+        }
+        closer += "────────────────────╯" + AnsiCodes.RESET;
+        System.out.println(closer);
     }
     /**
      * Prints a formatted header using ANSI styling, indicating that training has begun.
