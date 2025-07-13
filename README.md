@@ -14,9 +14,19 @@
 - Clean, Keras-similar UI for model training.  
 - Implement custom training steps easily.  
 - Debug mode for inspecting gradients.  
-  
-Simple Neural Network Debug    
-![Gradient Debug Example](readme-images/NN-Debug-Example.png)  
+### Simple Neural Network Debug  
+**Code**  
+```java
+Sequential model = new Sequential(
+    "MNIST_neural_network",
+    Dense(128, InputShape(FLAT_IMAGE_SIZE)),
+    GELU(),
+    Dense(NUM_CLASSES),
+    Softmax()
+).setDebug(true); // Enable full forward/backward tracing during training
+```  
+**Live Output**  
+![Debug Example](readme-images/Debug-Example.png)  
 
 ### Key Features  
 
