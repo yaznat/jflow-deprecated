@@ -4,6 +4,7 @@ import jflow.data.JMatrix;
 import jflow.layers.templates.ShapeAlteringLayer;
 
 public class Reshape extends ShapeAlteringLayer{
+    private int newLength = 0;
     private int newChannels;
     private int newHeight;
     private int newWidth;

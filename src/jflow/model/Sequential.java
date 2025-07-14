@@ -264,9 +264,10 @@ public class Sequential{
 
      /**
      * Retrieve the parameter gradients from the model. <p>
-     * For custom train steps, use: {@code optimizer.apply(model.trainableVariables())}
+     * For custom train steps, use: {@code optimizer.apply(model.parameterGradients())}.
+     * This applies weight updates to the model layers.
      */
-    public HashMap<String, JMatrix[]> trainableVariables() {
+    public HashMap<String, JMatrix[]> parameterGradients() {
         return layerGradients;
     }
 
@@ -373,7 +374,7 @@ public class Sequential{
                     yTrue = JMatrix.wrap(yBatchf, batchSize, 1, 1, 1);
                     
                 } else {
-                    yTrue = oneHotEncode(yBatch, classes, true);
+                    yTrue = oneHotEncode(yBatch, classes, false);
                 }
 
                 backward(yTrue);
@@ -406,7 +407,7 @@ public class Sequential{
             List<Metric> metricReport = new ArrayList<>();
 
             // Add train accuracy
-            double trainAccuracy = accuracy / loader.numBatches();
+            double trainAccuracy = accuracy / numBatches;
             metricReport.add(new Metric(
                 "Training Accuracy", 
                 trainAccuracy, 
@@ -482,15 +483,15 @@ public class Sequential{
 
     // Internal helper to convert output to predictions
     private int[] getPredictions(JMatrix output) {
-        int batchSize = output.channels();
         if (layers.getLast() instanceof Sigmoid) {
+            int batchSize = output.shape(0);
             int[] predictions = new int[batchSize];
             for (int i = 0; i < batchSize; i++) {
                 predictions[i] = (output.get(i) >= 0.5) ? 1 : 0;
             }
             return predictions;
         }
-        return argmax0(output);
+        return output.argmax(1);
     }
 
     /**
@@ -518,7 +519,7 @@ public class Sequential{
 
     /**
      * Perform forward propagation.
-     * @param images               Image data wrapped in a JMatrix.
+     * @param input                Input data wrapped in a JMatrix.
      * @param training             Indicate whether for training or inference.
      * @return                     Returns the forward output of the last layer of the model.
      */
@@ -575,6 +576,7 @@ public class Sequential{
     private double crossEntropyLoss(JMatrix output, int[] labels) {
         double epsilon = 1e-12;
         int batchSize = labels.length;
+        int numClasses = output.shape(1);
         double totalLoss = 0;
 
         if (layers.getLast() instanceof Sigmoid) {
@@ -582,7 +584,6 @@ public class Sequential{
             for (int i = 0; i < batchSize; i++) {
                 int label = labels[i];
                 double predictedProb = output.get(i);
-                
                 // b.c.e.
                 totalLoss += -label * Math.log(predictedProb + epsilon) - 
                             (1 - label) * Math.log(1 - predictedProb + epsilon);
@@ -590,7 +591,7 @@ public class Sequential{
         } else {
             for (int i = 0; i < batchSize; i++) {
                 int label = labels[i];
-                int index = label * batchSize + i; // Tranposed
+                int index = i * numClasses + label;
                 double predictedProb = output.get(index);
                 totalLoss += -Math.log(predictedProb + epsilon);
             }
@@ -598,31 +599,7 @@ public class Sequential{
     
         return totalLoss / batchSize;
     }
-    
-    // Find the max value per column
-    private int[] argmax0(JMatrix output) {
-        int height = output.length();
-        int width = output.channels() * output.height() * output.width();
-        float[] arr = output.unwrap();
-        int[] result = new int[width];
-    
-        for (int col = 0; col < width; col++) {
-            double max = Double.NEGATIVE_INFINITY; 
-            int index = 0;
-    
-            for (int row = 0; row < height; row++) {
-                int flatIndex = row * width + col; 
-                if (arr[flatIndex] > max) {
-                    max = arr[flatIndex];
-                    index = row;
-                }
-            }
-    
-            result[col] = index; 
-        }
-    
-        return result;
-    }
+
 
     /**
      * Get the forward output of a layer in the model.
@@ -663,7 +640,7 @@ public class Sequential{
                 jflow.model.Layer l = layers.get(i);
                 if (l instanceof TrainableLayer trainable) {
                     for (JMatrix weight : trainable.getParameters()) {
-                        String filePath = path + "/" + trainable.getName() + "_" + weight.getName() + ".bin";
+                        String filePath = path + "/" + trainable.getName() + "_" + weight.label() + ".bin";
                         saveWeightToBinary(filePath, weight);
                     }
                 }
@@ -691,7 +668,7 @@ public class Sequential{
                 .parallel()
                 .forEach(i -> {
                     JMatrix weight = optWeights[i];
-                    String filePath = path + "/" + optimizer.getName() + "/" + weight.getName() + ".bin";
+                    String filePath = path + "/" + optimizer.getName() + "/" + weight.label() + ".bin";
                     saveWeightToBinary(filePath, weight);
                 });
         }
@@ -733,7 +710,7 @@ public class Sequential{
                 if (l instanceof TrainableLayer trainable) {
                     JMatrix[] weights = trainable.getParameters();
                     for (JMatrix weight : weights) {
-                        String filePath = path + "/" + trainable.getName() + "_" + weight.getName() + ".bin";
+                        String filePath = path + "/" + trainable.getName() + "_" + weight.label() + ".bin";
                         loadWeightFromBinary(filePath, weight);
                     }
                 }
@@ -756,7 +733,7 @@ public class Sequential{
                 .parallel()
                 .forEach(i -> {
                     JMatrix weight = weights[i];
-                    String filePath = path + "/" + optimizer.getName() + "/" + weight.getName() + ".bin";
+                    String filePath = path + "/" + optimizer.getName() + "/" + weight.label() + ".bin";
                     loadWeightFromBinary(filePath, weight);
                 });
         }
