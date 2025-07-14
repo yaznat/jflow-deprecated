@@ -28,33 +28,49 @@ public class Callbacks {
      * @param debugTitle The title of this JMatrix group. Enter "" for no title.
      */
     public static void printStats(String debugTitle, JMatrix... debugData) {
+        int shellWidth = 48;
+        int topBracketWidth = shellWidth;
         String separator = AnsiCodes.YELLOW + " | ";
         if (!debugTitle.equals("")) {
             debugTitle = " " + debugTitle + " ";
         }
-        System.out.println(
-                AnsiCodes.BLUE + "╭────────────────────" + AnsiCodes.BOLD + 
-                debugTitle + AnsiCodes.RESET + AnsiCodes.BLUE + "────────────────────╮");
+        topBracketWidth -= debugTitle.length();
+        boolean oddWidth = topBracketWidth % 2 != 0;
+        topBracketWidth /= 2;
+        System.out.print(AnsiCodes.BLUE + "╭");
+        for (int i = 0; i < topBracketWidth; i++) {
+            System.out.print("─");
+        }
+        if (oddWidth) {
+            System.out.print("─");
+        }
+        System.out.print(AnsiCodes.BOLD + debugTitle + AnsiCodes.RESET + AnsiCodes.BLUE);
+        for (int i = 0; i < topBracketWidth; i++) {
+            System.out.print("─");
+        }
+        System.out.println("╮");
 
         // Find maximum lengths for monospacing
-        int numStats = 5;
+        int numStats = 6;
         int[] maxLengths = new int[numStats];
         for (JMatrix data : debugData) {
-            maxLengths[0] = Math.max(maxLengths[0], data.getName().length());
-            maxLengths[1] = Math.max(maxLengths[1], data.shapeAsString().length());
-            maxLengths[2] = Math.max(maxLengths[2], String.valueOf((float)data.absMean()).length());
-            maxLengths[3] = Math.max(maxLengths[3], String.valueOf((float)data.l1Norm()).length());
-            maxLengths[4] = Math.max(maxLengths[4], String.valueOf((float)data.l2Norm()).length());
+            maxLengths[0] = Math.max(maxLengths[0], data.label().length());
+            maxLengths[1] = Math.max(maxLengths[1], formatShapeLabel(data.shape()).length());
+            maxLengths[2] = Math.max(maxLengths[2], formatShape(data.shape()).length());
+            maxLengths[3] = Math.max(maxLengths[3], String.valueOf((float)data.absMean()).length());
+            maxLengths[4] = Math.max(maxLengths[4], String.valueOf((float)data.l1Norm()).length());
+            maxLengths[5] = Math.max(maxLengths[5], String.valueOf((float)data.l2Norm()).length());
         }
         // Iterate over matrices
         for (JMatrix data : debugData) {
             System.out.print(AnsiCodes.BLUE + "│ ");
             String[] stats = new String[numStats];
-            stats[0] = data.getName();
-            stats[1] = data.shapeAsString();
-            stats[2] = String.valueOf((float)data.absMean());
-            stats[3] = String.valueOf((float)data.l1Norm());
-            stats[4] = String.valueOf((float)data.l2Norm());
+            stats[0] = data.label();
+            stats[1] = formatShapeLabel(data.shape());
+            stats[2] = formatShape(data.shape());
+            stats[3] = String.valueOf((float)data.absMean());
+            stats[4] = String.valueOf((float)data.l1Norm());
+            stats[5] = String.valueOf((float)data.l2Norm());
                
             for (int i = 0; i < numStats; i++) {
                 while (stats[i].length() < maxLengths[i]) {
@@ -63,20 +79,18 @@ public class Callbacks {
             }
             // Print statistics
             System.out.print(AnsiCodes.TEAL + stats[0]);
-            System.out.print(separator + AnsiCodes.ORANGE + "shape " + AnsiCodes.TEAL + 
-                "(N, C, H, W)" + AnsiCodes.ORANGE + ": " + AnsiCodes.WHITE + stats[1]); 
-            System.out.print(separator + AnsiCodes.ORANGE + "absMean: " + AnsiCodes.WHITE + stats[2]);
-            System.out.print(separator + AnsiCodes.ORANGE + "l1: " + AnsiCodes.WHITE + stats[3]);
-            System.out.print(separator + AnsiCodes.ORANGE + "l2: " + AnsiCodes.WHITE + stats[4]);
+            System.out.print(separator + AnsiCodes.ORANGE + "shape " + stats[1] + stats[2]); 
+            System.out.print(separator + AnsiCodes.ORANGE + "absMean: " + AnsiCodes.WHITE + stats[3]);
+            System.out.print(separator + AnsiCodes.ORANGE + "l1: " + AnsiCodes.WHITE + stats[4]);
+            System.out.print(separator + AnsiCodes.ORANGE + "l2: " + AnsiCodes.WHITE + stats[5]);
 
             System.out.println();
         }
-        String closer = AnsiCodes.BLUE + "╰────────────────────";
-        for (int i = 0; i < debugTitle.length(); i++) {
-            closer += "─";
+        System.out.print(AnsiCodes.BLUE + "╰");
+        for (int i = 0; i < shellWidth; i++) {
+            System.out.print("─");
         }
-        closer += "────────────────────╯" + AnsiCodes.RESET;
-        System.out.println(closer);
+        System.out.println("╯" + AnsiCodes.RESET);
     }
     /**
      * Prints a formatted header using ANSI styling, indicating that training has begun.
@@ -259,5 +273,33 @@ public class Callbacks {
             numAsString += "0";
         }
         return numAsString.substring(0, length);
+    }
+
+    private static String formatShapeLabel(int[] shape) {
+        int N = shape[0], C = shape[1], H = shape[2], W = shape[3];
+    
+        if (H > 1 && W > 1)
+            return AnsiCodes.TEAL + "(N, C, H, W)" + AnsiCodes.ORANGE + ":";
+        if (H > 1)
+            return AnsiCodes.TEAL + "(N, C, F)" + AnsiCodes.ORANGE + ":";
+        if (W > 1)
+            return AnsiCodes.TEAL + "(N, C, F)" + AnsiCodes.ORANGE + ":"; 
+        if (C > 1)
+            return AnsiCodes.TEAL + "(N, F)" + AnsiCodes.ORANGE + ":";
+        return AnsiCodes.TEAL + "(N,)" + AnsiCodes.ORANGE + ":";
+    }
+
+    private static String formatShape(int[] shape) {
+        int N = shape[0], C = shape[1], H = shape[2], W = shape[3];
+    
+        if (H > 1 && W > 1)
+            return AnsiCodes.WHITE + " (" + N + "," + C + "," + H + "," + W + ")";
+        if (H > 1)
+            return AnsiCodes.WHITE + " (" + N + "," + C + "," + H + ")";
+        if (W > 1)
+            return AnsiCodes.WHITE + " (" + N + "," + C + "," + W + ")";
+        if (C > 1)
+            return AnsiCodes.WHITE + " (" + N + "," + C + ")";
+        return AnsiCodes.WHITE + " (" + N + "," + ")";
     }
 }

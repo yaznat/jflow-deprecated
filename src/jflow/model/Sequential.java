@@ -526,48 +526,52 @@ public class Sequential{
     public JMatrix forward(JMatrix input, boolean training) {
         if (debugMode && training) {
             System.out.println(
-                AnsiCodes.BLUE + "============" +
-                " Forward Pass Debug " + "============"
-                + AnsiCodes.RESET
+                AnsiCodes.BLUE + "============ " + 
+                "Forward Debug: " + AnsiCodes.BOLD + name() + AnsiCodes.RESET + 
+                AnsiCodes.BLUE + " ============" + AnsiCodes.RESET
             );
-            Callbacks.printStats("", input.setName("input"));
+            Callbacks.printStats("", input.label("input"));
 
         }
         JMatrix output = input;
         for (int i = 0; i < layers.size(); i++) {
             if (!layers.get(i).isInternal()) {
                 output = layers.get(i).forward(output, training);
+
+                if (debugMode && training) {
+                    layers.get(i).printForwardDebug();
+                }
             }
-            if (debugMode && training) {
-                layers.get(i).printForwardDebug();
-            }
+            
         }
         return output;
     }
 
     /**
      * Perform backward propagation.
-     * @param images               yTrue data wrapped in a JMatrix.
+     * @param gradient               Gradient wrapped in a JMatrix.
      * @param learningRate         The desired learning rate for updating parameters.
      * @return                     Returns the gradient, dX, of the first layer of the model.
      */
-    public JMatrix backward(JMatrix yTrue) {
+    public JMatrix backward(JMatrix gradient) {
         if (debugMode) {
             System.out.println(
-                AnsiCodes.BLUE + "============" +
-                " Backward Pass Debug " + "============"
-                + AnsiCodes.RESET
+                AnsiCodes.BLUE + "============ " + 
+                "Backward Debug: " + AnsiCodes.BOLD + name() + AnsiCodes.RESET + 
+                AnsiCodes.BLUE + " ============" + AnsiCodes.RESET
             );
-            Callbacks.printStats("", yTrue.setName("yTrue"));
+            Callbacks.printStats("", gradient.label("gradient"));
         }
-        JMatrix gradient = yTrue;
+
         for (int i = layers.size() - 1; i >= 0; i--) {
             if (!layers.get(i).isInternal()) {
                 gradient = layers.get(i).backward(gradient);
+
+                if (debugMode) {
+                    layers.get(i).printBackwardDebug();
+                }
             }
-            if (debugMode) {
-                layers.get(i).printBackwardDebug();
-            }
+            
         }
         return gradient;
     }

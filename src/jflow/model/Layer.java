@@ -173,18 +173,18 @@ public abstract class Layer {
         return count;
     }
 
-    protected void printForwardDebug() {
+    public void printForwardDebug() {
         JMatrix[] debugData = forwardDebugData();
         if (!(debugData == null)) {
-            String title = getName() + " output";
+            String title = getName();
             Callbacks.printStats(title, debugData);
         }
     }
 
-    protected void printBackwardDebug() {
+    public void printBackwardDebug() {
         JMatrix[] debugData = backwardDebugData();
         if (!(debugData == null)) {
-            String title = getName() + " gradients";
+            String title = getName();
             Callbacks.printStats(title, debugData);
         }
     }
