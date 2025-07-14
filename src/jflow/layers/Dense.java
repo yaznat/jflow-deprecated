@@ -160,19 +160,19 @@ public class Dense extends TrainableLayer {
                 );
             }
         }
-        weights.setName("weights");
+        weights.label("weights");
 
         dWeights = JMatrix.zeros(
             outputSize, inputSize, 1, 1
         )
-        .setName("dWeights");
+        .label("dWeights");
 
         if (useBias) {
-            biases.setName("biases");
+            biases.label("biases");
             dBiases = JMatrix.zeros(
                 outputSize, 1, 1, 1
             )
-            .setName("dBiases");
+            .label("dBiases");
         }   
     }
 

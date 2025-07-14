@@ -23,7 +23,7 @@ public abstract class ShapePreservingLayer extends Layer{
         if (getOutput() == null) {
             return null;
         }
-        return new JMatrix[]{getOutput().setName("activation")};
+        return new JMatrix[]{getOutput().label("activation")};
     }
 
     @Override
@@ -31,6 +31,6 @@ public abstract class ShapePreservingLayer extends Layer{
         if (getGradient() == null) {
             return null;
         }
-        return new JMatrix[]{getGradient().setName("dActivation")};
+        return new JMatrix[]{getGradient().label("dActivation")};
     }
 }

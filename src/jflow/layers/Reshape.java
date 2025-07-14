@@ -13,12 +13,19 @@ public class Reshape extends ShapeAlteringLayer{
     private int oldLength;
 
 
-    public Reshape(int channels, int height, int width) {
+    public Reshape(int length, int channels, int height, int width) {
         super("reshape");
+        this.newLength = length;
         this.newChannels = channels;
         this.newHeight = height;
         this.newWidth = width;
     }
+
+    public Reshape(int channels, int height, int width) {
+        this(0, channels, height, width);
+    }
+
+    
 
     @Override
     public JMatrix forward(JMatrix input, boolean training) {
@@ -31,8 +38,9 @@ public class Reshape extends ShapeAlteringLayer{
         if (getPreviousShapeInfluencer() instanceof Dense) {
             input = input.T();
         }
+        int newLength = (this.newLength == 0) ? input.length() : this.newLength;
 
-        return trackOutput(input.reshape(input.length(), newChannels, newHeight, newWidth), training);
+        return trackOutput(input.reshape(newLength, newChannels, newHeight, newWidth), training);
     }
 
     

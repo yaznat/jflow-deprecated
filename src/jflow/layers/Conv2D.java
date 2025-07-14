@@ -90,13 +90,13 @@ public class Conv2D extends TrainableLayer {
             filters[i] = (float)(ThreadLocalRandom.current().nextGaussian() * stdDev * filterScale);
         });
 
-        this.filters = JMatrix.wrap(filters, numFilters, numChannels, filterSize, filterSize).setName("filters");
+        this.filters = JMatrix.wrap(filters, numFilters, numChannels, filterSize, filterSize).label("filters");
 
         // Initialize biases to 0
-        biases = JMatrix.zeros(numFilters, 1, 1, 1).setName("biases");
+        biases = JMatrix.zeros(numFilters, 1, 1, 1).label("biases");
 
-        dFilters = JMatrix.zeros(numFilters, numChannels, filterSize, filterSize).setName("dFilters");
-        dBiases = JMatrix.zeros(numFilters, 1, 1, 1).setName("dBiases");
+        dFilters = JMatrix.zeros(numFilters, numChannels, filterSize, filterSize).label("dFilters");
+        dBiases = JMatrix.zeros(numFilters, 1, 1, 1).label("dBiases");
     }
 
     @Override

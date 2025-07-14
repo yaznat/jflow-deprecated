@@ -156,13 +156,60 @@ public class JMatrix {
         float[] noise = new float[size];
 
         IntStream.range(0, size).parallel().forEach(i -> {
-            noise[i] = (float)(ThreadLocalRandom
-                                    .current()
-                                    .nextDouble(min, max)
-                              );
+            // Hash-based unique seed per index
+            long localSeed = seed ^ Long.rotateLeft(i * 0x9E3779B97F4A7C15L, 17);
+            Random rng = new Random(localSeed);
+
+            // Uniform distribution: [min, max)
+            noise[i] = (float)(rng.nextDouble() * range + min);
         });
 
         return JMatrix.wrap(noise, length, channels, height, width);
+    }
+
+    /**
+     * Create a JMatrix with normally distributed values.
+     * @param length        the N dimension of the JMatrix.
+     * @param channels      the channel dimension of the JMatrix.
+     * @param height        the height dimension of the JMatrix.
+     * @param width         the width dimension of the JMatrix.
+     * @param mean          the mean of the normal distribution.
+     * @param stddev        the standard deviation of the normal distribution.
+     * @return              a JMatrix initialized with normal distribution.
+     */
+    public static JMatrix normal(
+        int length,
+        int channels,
+        int height,
+        int width,
+        double mean,
+        double stddev
+    ) {
+        int size = length * channels * height * width;
+        float[] noise = new float[size];
+
+        IntStream.range(0, size).parallel().forEach(i -> {
+            // Hash-based unique seed per index
+            long localSeed = seed ^ Long.rotateLeft(i * 0x9E3779B97F4A7C15L, 17);
+            Random rng = new Random(localSeed);
+
+            // Box-Muller transform
+            double u1 = rng.nextDouble();
+            double u2 = rng.nextDouble();
+            double z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+            noise[i] = (float)(z0 * stddev + mean);
+        });
+
+        return JMatrix.wrap(noise, length, channels, height, width);
+        
+    }
+
+    /**
+     * Set the JMatrix seed for reproducability.
+     * @param seed the seed to use.
+     */
+    public static void setSeed(long seed) {
+        JMatrix.seed = seed;
     }
 
     /**
@@ -176,7 +223,7 @@ public class JMatrix {
      * Name this JMatrix.
      * @param name          The name to assign.
      */
-    public JMatrix setName(String name) {
+    public JMatrix label(String name) {
         this.name = name;
         return this;
     }
@@ -185,7 +232,7 @@ public class JMatrix {
      * Access the name of this JMatrix. 
      * @return <b> name </b> if it's set. <li> otherwise null. </li>
      */
-    public String getName() {
+    public String label() {
         return name;
     }
 
@@ -724,58 +771,24 @@ public class JMatrix {
      * @return A new JMatrix with shape (cols, rows, 1, 1).
      */
     public JMatrix T() {
+        
         int oldHeight = length;
         int oldWidth = channels * height * width;
         int newHeight = oldWidth;
         int newWidth = oldHeight;
 
+
         float[] result = new float[size()];
 
-        MatrixOps.transpose2DMatrixByDims(
+        MatrixOps.transpose4DMatrixByDims(
             matrix, 
-            oldHeight, oldWidth,
-            1, 0,
+            oldHeight, oldWidth, 1, 1,
+            1, 0, 2, 3,
             result
         );
 
         // Assign all features to channels (C) for 2D use case
         return JMatrix.wrap(result, newHeight, newWidth, 1, 1);
-    }
-
-    /**
-     * Perform a permutation for 3D use cases, 
-     * treating the matrix as batch (N), rows (C), and cols (H*W)
-     * @param axis1 the axis to use as the batch dimension.
-     * @param axis2 the axis to use as the row dimension.
-     * @param axis3 the axis to use as the column dimension.
-     * 
-     * @throws IllegalArgumentException     If axis values are not a permuation of (0, 1, 2, 3).
-     */
-    public JMatrix permute(int axis1, int axis2, int axis3) {
-        int oldBatch = length;
-        int oldRows = channels;         
-        int oldCols = height * width;           
-
-        float[] result = new float[size()];
-
-        MatrixOps.transpose3DMatrixByDims(
-            matrix, 
-            oldBatch, oldRows, oldCols, 
-            axis1, axis2, axis3,
-            result);
-        
-        int[] dims = shape();
-
-        int[] dims3D = new int[] {
-            dims[0], 
-            dims[1],
-            dims[2] * dims[3]
-        };
-        int newBatch = dims3D[axis1];
-        int newRows = dims3D[axis2];
-        int newCols = dims3D[axis3];
-
-        return JMatrix.wrap(result, newBatch, newRows, newCols, 1);
     }
 
     /**
@@ -820,7 +833,7 @@ public class JMatrix {
     public JMatrix copy() {
         JMatrix copy = JMatrix.wrap(matrix.clone(), shape());
         if (name != null) {
-            copy.setName(name);
+            copy.label(name);
         }
         return copy;
     }

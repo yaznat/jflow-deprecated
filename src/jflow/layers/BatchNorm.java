@@ -41,20 +41,20 @@ public class BatchNorm extends TrainableLayer {
         setNumTrainableParameters(featureSize * 2);
 
         // Initialize gamma values as 1.0
-        this.gamma = JMatrix.ones(1, featureSize, 1, 1).setName("gamma");
+        this.gamma = JMatrix.ones(1, featureSize, 1, 1).label("gamma");
         
         // Initialize beta values as 0.0
-        this.beta = JMatrix.zeros(1, featureSize, 1, 1).setName("beta");
+        this.beta = JMatrix.zeros(1, featureSize, 1, 1).label("beta");
         
         // Initialize running mean as 0.0
-        this.runningMean = JMatrix.zeros(1, featureSize, 1, 1).setName("runningMean");
+        this.runningMean = JMatrix.zeros(1, featureSize, 1, 1).label("runningMean");
 
         // Initialize running var as 1.0
-        this.runningVar = JMatrix.ones(1, featureSize, 1, 1).setName("runningVar");
+        this.runningVar = JMatrix.ones(1, featureSize, 1, 1).label("runningVar");
 
         // Initialize derivatives as 0.0
-        this.dGamma = JMatrix.zeros(1, featureSize, 1, 1).setName("dGamma");
-        this.dBeta = JMatrix.zeros(1, featureSize, 1, 1).setName("dBeta");
+        this.dGamma = JMatrix.zeros(1, featureSize, 1, 1).label("dGamma");
+        this.dBeta = JMatrix.zeros(1, featureSize, 1, 1).label("dBeta");
         this.dxHatSum = JMatrix.zeros(1, featureSize, 1, 1);
         this.dxHatXhatSum = JMatrix.zeros(1, featureSize, 1, 1);
 

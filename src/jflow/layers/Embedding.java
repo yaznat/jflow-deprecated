@@ -9,6 +9,9 @@ public class Embedding extends TrainableLayer {
     private int vocabSize;
     private int embedDim;
     private float[] tiedWeights = null;
+    private boolean customInit = false;
+    private double mean;
+    private double stddev;
 
     private JMatrix embeddings;         // shape: (vocabSize, embedDim)
     private JMatrix gradEmbeddings;     // shape: (vocabSize, embedDim)
@@ -41,14 +44,30 @@ public class Embedding extends TrainableLayer {
         return this;
     }
 
+    public Embedding initNormal(double mean, double stddev) {
+        this.customInit = true;
+        this.mean = mean;
+        this.stddev = stddev;
+        return this;
+    }
+
     @Override
     public void build(int IDnum) {
         super.build(IDnum);
+        double mean; double stddev;
+        if (customInit) {
+            mean = this.mean;
+            stddev = this.stddev;
+        } else{
+            // Standard embedding distribution
+            mean = 0;
+            stddev = 0.02;
+        }
 
         embeddings = JMatrix
-            .uniform(vocabSize, embedDim, 1, 1, -0.02, 0.02) // Standard range
-            .setName("embedding"); 
-        gradEmbeddings = JMatrix.zeros(vocabSize, embedDim, 1, 1).setName("dEmbedding");
+            .normal(vocabSize, embedDim, 1, 1, mean, stddev) 
+            .label("embedding"); 
+        gradEmbeddings = JMatrix.zeros(vocabSize, embedDim, 1, 1).label("dEmbedding");
 
         if (tiedWeights == null) {
             setNumTrainableParameters(vocabSize * embedDim);

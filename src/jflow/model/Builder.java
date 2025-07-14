@@ -165,13 +165,24 @@ public class Builder {
     }
 
     /**
-     * The Reshape Layer.
+     * Reshapes data in forward() and return it to its original shape in backward().
      * @param channels              The channel dimension to reshape to.
      * @param height                The height dimension to reshape to.
      * @param width                 The width dimension to reshape to.
      */
     public static Reshape Reshape(int channels, int height, int width) {
         return new Reshape(channels, height, width);
+    }
+
+    /**
+     * Reshapes data in forward() and return it to its original shape in backward().
+     * @param length                The length dimension to reshape to.
+     * @param channels              The channel dimension to reshape to.
+     * @param height                The height dimension to reshape to.
+     * @param width                 The width dimension to reshape to.
+     */
+    public static Reshape Reshape(int length, int channels, int height, int width) {
+        return new Reshape(length, channels, height, width);
     }
 
     /**

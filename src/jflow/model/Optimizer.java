@@ -64,7 +64,7 @@ public abstract class Optimizer {
         int index = 0;
         for (Map.Entry<TrainableLayer, JMatrix[]> entry : layerMoments.entrySet()) {
             for (JMatrix weight : entry.getValue()) {
-                weight.setName(String.valueOf(index)); // Ensure that each weight has a unique name
+                weight.label(String.valueOf(index)); // Ensure that each weight has a unique label
                 weights[index++] = weight;
             }
         }
