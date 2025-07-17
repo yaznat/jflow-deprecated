@@ -17,6 +17,13 @@ public class MaxPool2D extends ShapeAlteringLayer {
 
     private JMatrix lastInput;
 
+    /**
+     * The MaxPool2D layer.
+     * 
+     * <p><b>Do not instantiate directly.</b> Use the static builder method:
+     * {@code import static jflow.model.builder.*;}
+     * and call {@code MaxPool2D(...)} instead of {@code new MaxPool2D(...)}.
+     */
     public MaxPool2D(int poolSize, int stride) {
         super("max_pool_2d");
         this.poolSize = poolSize;

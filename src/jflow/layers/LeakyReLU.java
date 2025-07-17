@@ -7,8 +7,15 @@ import jflow.data.JMatrix;
 import jflow.layers.templates.ShapePreservingLayer;
 
 public class LeakyReLU extends ShapePreservingLayer{
-    private float alpha;
+    private final float alpha;
 
+    /**
+     * The LeakyReLU activation.
+     * 
+     * <p><b>Do not instantiate directly.</b> Use the static builder method:
+     * {@code import static jflow.model.builder.*;}
+     * and call {@code LeakyReLU(...)} instead of {@code new LeakyReLU(...)}.
+     */
     public LeakyReLU(double alpha) {
         super("leaky_re_lu");
         this.alpha = (float)alpha;

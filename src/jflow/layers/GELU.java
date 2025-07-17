@@ -4,77 +4,62 @@ import java.util.stream.IntStream;
 import jflow.data.JMatrix;
 import jflow.layers.templates.ShapePreservingLayer;
 
-/**
- * GELU (Gaussian Error Linear Unit) activation function.
- */
 public class GELU extends ShapePreservingLayer {
-    private JMatrix lastInput;
-    
+    private static final double SQRT_2_OVER_PI = Math.sqrt(2.0 / Math.PI);
+    private static final double COEFF = 0.044715;
+
+    /**
+     * The GELU activation.
+     * 
+     * <p><b>Do not instantiate directly.</b> Use the static builder method:
+     * {@code import static jflow.model.builder.*;}
+     * and call {@code GELU()} instead of {@code new GELU()}.
+     */
     public GELU() {
         super("gelu");
     }
     
-    
+    /*
+     * Approximation: GELU(x) ≈ 0.5 * x * (1 + tanh(√(2/π) * (x + 0.044715 * x³)))
+     * Used in the original BERT paper.
+     */ 
     @Override
     public JMatrix forward(JMatrix input, boolean training) {
-        lastInput = input;
+        cacheInput(input, training);
         int size = input.size();
         JMatrix output = input.zerosLike();
-        
+
         IntStream.range(0, size).parallel().forEach(i -> {
             double x = input.get(i);
-            double geluValue;
-            
-            // Exact formula: x * 0.5 * (1 + erf(x/sqrt(2)))
-            geluValue = x * 0.5 * (1 + erf(x / Math.sqrt(2)));
-
-            
-            output.set(i, geluValue);
+            double xCube = x * x * x;
+            double inner = SQRT_2_OVER_PI * (x + COEFF * xCube);
+            double tanhInner = Math.tanh(inner);
+            output.set(i, 0.5 * x * (1 + tanhInner));
         });
-        
+
         return trackOutput(output, training);
     }
-    
+
     @Override
     public JMatrix backward(JMatrix gradient) {
+        JMatrix x = getLastInput();
+        JMatrix dZ = x.zerosLike();
         int size = gradient.size();
-        JMatrix dZ = lastInput.zerosLike();
-        
-        IntStream.range(0, size).parallel().forEach(i -> {
-            double x = lastInput.get(i);
-            double derivative;
-            
-            // Derivative of GELU exact formula
-            // 0.5 * (1 + erf(x/sqrt(2))) + x * 0.5 * (2/sqrt(2*pi)) * exp(-(x/sqrt(2))^2)
-            double xOverSqrt2 = x / Math.sqrt(2);
-            double erfTerm = 0.5 * (1 + erf(xOverSqrt2));
-            double gaussianTerm = 0.5 * Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
-            derivative = erfTerm + x * gaussianTerm;
-            
-            dZ.set(i, gradient.get(i) * derivative);
-        });
-        
-        return trackGradient(dZ);
-    }
-    
 
-    // The error function, erf(x), with a polynomial approximation
-    private double erf(double x) {
-        // Constants for Abramowitz and Stegun approximation
-        final double a1 = 0.254829592;
-        final double a2 = -0.284496736;
-        final double a3 = 1.421413741;
-        final double a4 = -1.453152027;
-        final double a5 = 1.061405429;
-        final double p = 0.3275911;
-        
-        // Save the sign of x
-        int sign = (x < 0) ? -1 : 1;
-        x = Math.abs(x);
-        
-        double t = 1.0 / (1.0 + p * x);
-        double y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
-        
-        return sign * y;
+        IntStream.range(0, size).parallel().forEach(i -> {
+            double xi = x.get(i);
+            double x3 = xi * xi * xi;
+            double inner = SQRT_2_OVER_PI * (xi + COEFF * x3);
+            double tanhInner = Math.tanh(inner);
+            double sech2 = 1 - tanhInner * tanhInner;
+
+            double term1 = 0.5 * (1 + tanhInner);
+            double term2 = 0.5 * xi * sech2 * SQRT_2_OVER_PI * (1 + 3 * COEFF * xi * xi);
+
+            double grad = gradient.get(i) * (term1 + term2);
+            dZ.set(i, grad);
+        });
+
+        return trackGradient(dZ);
     }
 }

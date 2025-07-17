@@ -7,6 +7,13 @@ import jflow.layers.templates.ShapePreservingLayer;
 
 public class Sigmoid extends ShapePreservingLayer{
 
+    /**
+     * The Sigmoid activation.
+     * 
+     * <p><b>Do not instantiate directly.</b> Use the static builder method:
+     * {@code import static jflow.model.builder.*;}
+     * and call {@code Sigmoid()} instead of {@code new Sigmoid()}.
+     */
     public Sigmoid() {
         super("sigmoid");
     }
@@ -31,7 +38,10 @@ public class Sigmoid extends ShapePreservingLayer{
         int size = output.size();
 
         if (getNextLayer() == null) {
-            // use b.c.e.: predicted - actual
+            /*
+             * This is the output layer.
+             * Use binary cross entropy: predicted - actual
+             */ 
             return trackGradient(output.subtract(gradient));
         }
 

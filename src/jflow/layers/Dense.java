@@ -1,29 +1,20 @@
 package jflow.layers;
 
-import java.util.stream.IntStream;
-
 import jflow.data.JMatrix;
-import jflow.layers.templates.TrainableLayer;
+import jflow.layers.templates.ParametricLayer;
 
-public class Dense extends TrainableLayer {
+public class Dense extends ParametricLayer<Dense> {
     private JMatrix weights;
     private JMatrix dWeights;
-    private JMatrix lastInput;
     private JMatrix biases;
     private JMatrix dBiases;
 
-    private int outputSize;
-    private boolean useBias = true;
+    private final int outputSize;
+    private final boolean useBias;
 
     private boolean scaleDuringMatmul = true;
     private float[] tiedWeights = null;
-
-    // For custom weight initialization
-    private boolean useUniform = false;
-    private boolean useNormal = false;
-    private double[] uniformRange;
-    private double[] normalDist;
-
+  
     /**
      * Represents a fully connected layer.
      * 
@@ -36,28 +27,6 @@ public class Dense extends TrainableLayer {
         this.outputSize = size;
         this.useBias = useBias;
         setInputShape(inputShape);
-    }
-
-    /**
-     * Initialize the weights of this Dense layer in a uniform range.
-     * @param min the minimum value.
-     * @param max the maximum value.
-     */
-    public Dense initUniform(double min, double max) {
-        useUniform = true;
-        uniformRange = new double[]{min, max};
-        return this;
-    }
-
-    /**
-     * Initialize the weights of this Dense layer in a normal distribution.
-     * @param mean the mean of the distribution.
-     * @param stddev the standard deviation of the distribution.
-     */
-    public Dense initNormal(double mean, double stddev) {
-        useNormal = true;
-        normalDist = new double[]{mean, stddev};
-        return this;
     }
 
     /**
@@ -75,7 +44,7 @@ public class Dense extends TrainableLayer {
     /**
      * Set the weight matrix for weight tying.
      * @param weights The weight matrix to use for this Dense layer.
-     * @param removeFromParamCount Indicates if the weight matrix of this Dense 
+     * @param removeFromParamCount Indicate if the weight matrix of this Dense 
      * layer should be removed from the parameter count.
      */
     public Dense weightTie(float[] weights, boolean removeFromParamCount) {
@@ -114,37 +83,27 @@ public class Dense extends TrainableLayer {
             }
             setNumTrainableParameters(numTrainableParameters);
         } else {
-            weights.setMatrix(tiedWeights);
+            try {
+                weights.setMatrix(tiedWeights);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException(
+                    "Invalid matrix size for weight tying. Expected: "
+                    + weights.size() + " Got: " + tiedWeights.length
+                );
+            }
             tiedWeights = null;
         }
     }
 
     private void initParams(int inputSize) {
-        // Check for custom initialization
-        if (useNormal) {
-            weights = JMatrix.normal(
-                inputSize, outputSize, 1, 1, 
-                normalDist[0], normalDist[1]
-            );
+        // Check for user-specified initialization
+        if (useCustomInit()) {
+            weights = initCustomWeight(inputSize, outputSize, 1, 1);
             if (useBias) {
-                biases = JMatrix.normal(
-                    outputSize, 1, 1, 1, 
-                    normalDist[0], normalDist[1]
-                );
-            }
-        } else if (useUniform) {
-            weights = JMatrix.uniform(
-                inputSize, outputSize, 1, 1, 
-                uniformRange[0], uniformRange[1]
-            );
-            if (useBias) {
-                biases = JMatrix.uniform(
-                    outputSize, 1, 1, 1, 
-                    uniformRange[0], uniformRange[1]
-                );
+                biases = initCustomWeight(1, outputSize, 1, 1);
             }
         } else {
-            // He initialization
+            // Use standard he initialization
             double stddev = Math.sqrt(2.0 / inputSize);
             weights = JMatrix.normal(
                 inputSize, outputSize, 1, 1,
@@ -152,7 +111,7 @@ public class Dense extends TrainableLayer {
             );
             if (useBias) {
                 biases = JMatrix.normal(
-                    outputSize, 1, 1, 1,
+                    1, outputSize, 1, 1,
                     0.0, stddev
                 );
             }
@@ -175,26 +134,24 @@ public class Dense extends TrainableLayer {
 
     @Override
     public JMatrix forward(JMatrix input, boolean training) {
-        // Cache lastInput for backpropagation
-        if (training) {
-            lastInput = input;
-        }
+        // Cache the input for backpropagation
+        cacheInput(input, training);
 
         // Calculate forward output
         JMatrix output = input.matmul(weights, scaleDuringMatmul); 
 
         if (useBias) {
-            addBiasPerOutputFeature(output, biases); 
+            // Broadcast add: (1,F,1,1) over (N,F,1,1)
+            output.addInPlace(biases);
         }
         
-
         return trackOutput(output, training);
     }
 
     @Override
     public JMatrix backward(JMatrix gradient) {
         // Calculate dWeights and dBiases
-        JMatrix weightGrad = lastInput.T().matmul(gradient, scaleDuringMatmul);
+        JMatrix weightGrad = getLastInput().T().matmul(gradient, scaleDuringMatmul);
         dWeights.addInPlace(weightGrad); // Accumulate updates
 
         if (useBias) {
@@ -202,64 +159,15 @@ public class Dense extends TrainableLayer {
             dBiases.addInPlace(biasGrad); // Accumulate updates
         }
 
-        // Free memory
-        lastInput = null;
-       
         // Normalize dWeights and dBiases
         adaptiveGradientClip(weights, biases, dWeights, dBiases, 1e-2);
 
         // Calculate loss w.r.t previous layer
         JMatrix dX = gradient.matmul(weights.T(), scaleDuringMatmul);
-
+       
         return trackGradient(dX);
     }
 
-    private void addBiasPerOutputFeature(JMatrix output, JMatrix bias) {
-        int batchSize = output.shape(0);
-        int outputDim = output.shape(1) * output.shape(2) * output.shape(3);
-    
-        IntStream.range(0, batchSize).parallel().forEach(i -> {
-            for (int j = 0; j < outputDim; j++) {
-                int idx = i * outputDim + j;
-                output.set(idx, output.get(idx) + bias.get(j));
-            }
-        });
-    }
-    
-
-    @Override
-    public void updateParameters(JMatrix[] parameterUpdates) {
-        weights.subtractInPlace(parameterUpdates[0]);
-        if (useBias) {
-            biases.subtractInPlace(parameterUpdates[1]);
-        }
-    }
-
-    @Override
-    public JMatrix[] getParameters() {
-        if (useBias) {
-            return new JMatrix[]{weights, biases};
-        } else {
-            return new JMatrix[]{weights};
-        }
-        
-    }
-
-    @Override
-    public JMatrix[] getParameterGradients() {
-        if (useBias) {
-            return new JMatrix[]{dWeights, dBiases};
-        } else {
-            return new JMatrix[]{dWeights};
-        }
-    }
-
-    @Override
-    public int[] outputShape() {
-        int[] outputShape = new int[] {1, outputSize};
-        return outputShape;
-    }
-    
     // Adaptively clip with L2 norm
     private void adaptiveGradientClip(
         JMatrix weights, 
@@ -292,7 +200,36 @@ public class Dense extends TrainableLayer {
             }
         }
     }
+
+    @Override
+    public JMatrix[] getParameters() {
+        if (useBias) {
+            return new JMatrix[]{weights, biases};
+        } else {
+            return new JMatrix[]{weights};
+        }
+    }
+
+    @Override
+    public JMatrix[] getParameterGradients() {
+        if (useBias) {
+            return new JMatrix[]{dWeights, dBiases};
+        } else {
+            return new JMatrix[]{dWeights};
+        }
+    }
+
+    @Override
+    public void updateParameters(JMatrix[] parameterUpdates) {
+        weights.subtractInPlace(parameterUpdates[0]);
+        if (useBias) {
+            biases.subtractInPlace(parameterUpdates[1]);
+        }
+    }
+
+    @Override
+    public int[] outputShape() {
+        int[] outputShape = new int[] {1, outputSize};
+        return outputShape;
+    }
 }
-
-
-

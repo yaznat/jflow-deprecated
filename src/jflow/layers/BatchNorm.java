@@ -3,14 +3,11 @@ package jflow.layers;
 import java.util.stream.IntStream;
 
 import jflow.data.JMatrix;
-import jflow.layers.templates.TrainableLayer;
+import jflow.layers.templates.NormalizationLayer;
 
-public class BatchNorm extends TrainableLayer {
+public class BatchNorm extends NormalizationLayer<BatchNorm> {
     private int featureSize;
-    private double epsilon = 1e-5;
     private double momentum = 0.99;
-    private JMatrix gamma;
-    private JMatrix beta;
     private JMatrix runningMean;
     private JMatrix runningVar;
     private JMatrix batchMean;
@@ -21,30 +18,34 @@ public class BatchNorm extends TrainableLayer {
     private JMatrix output;
     
     // Pre-allocated matrices for backward pass
-    private JMatrix dGamma;
-    private JMatrix dBeta;
     private JMatrix dx;
     private JMatrix dxHat;
     private JMatrix dxHatSum;
     private JMatrix dxHatXhatSum;
 
 
+    /**
+     * the BatchNorm layer.
+     * 
+     * <p><b>Do not instantiate directly.</b> Use the static builder method:
+     * {@code import static jflow.model.builder.*;}
+     * and call {@code BatchNorm()} instead of {@code new BatchNorm()}.
+     */
     public BatchNorm() {
         super("batch_norm");
 
     }
 
-    public void build(int IDnum) {
-        super.build(IDnum);
+    @Override
+    protected int[] parameterShape() {
         this.featureSize = getPreviousLayer().outputShape()[1];
 
-        setNumTrainableParameters(featureSize * 2);
+        return new int[] {1, featureSize, 1, 1};
+    }
 
-        // Initialize gamma values as 1.0
-        this.gamma = JMatrix.ones(1, featureSize, 1, 1).label("gamma");
-        
-        // Initialize beta values as 0.0
-        this.beta = JMatrix.zeros(1, featureSize, 1, 1).label("beta");
+    @Override
+    public void build(int IDnum) {
+        super.build(IDnum); // calls parameterShape()
         
         // Initialize running mean as 0.0
         this.runningMean = JMatrix.zeros(1, featureSize, 1, 1).label("runningMean");
@@ -52,15 +53,15 @@ public class BatchNorm extends TrainableLayer {
         // Initialize running var as 1.0
         this.runningVar = JMatrix.ones(1, featureSize, 1, 1).label("runningVar");
 
-        // Initialize derivatives as 0.0
-        this.dGamma = JMatrix.zeros(1, featureSize, 1, 1).label("dGamma");
-        this.dBeta = JMatrix.zeros(1, featureSize, 1, 1).label("dBeta");
         this.dxHatSum = JMatrix.zeros(1, featureSize, 1, 1);
         this.dxHatXhatSum = JMatrix.zeros(1, featureSize, 1, 1);
 
     }
 
     public JMatrix forward(JMatrix input, boolean training) {
+        JMatrix gamma = getGamma();
+        JMatrix beta = getBeta();
+
         if (training) {
             this.input = input;
         }
@@ -173,6 +174,8 @@ public class BatchNorm extends TrainableLayer {
     }
     
     private JMatrix normalize(JMatrix input, JMatrix mean, JMatrix variance) {
+        final double ESPSILON = getEpsilon();
+
         JMatrix normalized = input.zerosLike();
         
         int batchSize = input.length();
@@ -183,7 +186,7 @@ public class BatchNorm extends TrainableLayer {
         // Pre-compute standard deviation inverses for efficiency
         float[] stdInvs = new float[channels];
         for (int c = 0; c < channels; c++) {
-            stdInvs[c] = (float)(1.0f / Math.sqrt(variance.get(c) + epsilon));
+            stdInvs[c] = (float)(1.0f / Math.sqrt(variance.get(c) + ESPSILON));
         }
         
         IntStream.range(0, batchSize * channels).parallel().forEach(nc -> {
@@ -244,6 +247,11 @@ public class BatchNorm extends TrainableLayer {
     }
 
     public JMatrix backward(JMatrix dOut) {
+        JMatrix gamma = getGamma();
+        JMatrix dGamma = getDGamma();
+        JMatrix dBeta = getDBeta();
+        final double ESPSILON = getEpsilon();
+
         int batchSize = input.length();
         int channels = input.channels();
         int height = input.height();
@@ -321,7 +329,7 @@ public class BatchNorm extends TrainableLayer {
         // Calculate dx
         float[] stdInvs = new float[channels];
         for (int c = 0; c < channels; c++) {
-            stdInvs[c] = (float)(1.0f / Math.sqrt(batchVar.get(c) + epsilon));
+            stdInvs[c] = (float)(1.0f / Math.sqrt(batchVar.get(c) + ESPSILON));
         }
         
         IntStream.range(0, batchSize * channels).parallel().forEach(nc -> {
@@ -349,46 +357,12 @@ public class BatchNorm extends TrainableLayer {
         });
         dx.clip(-1.0f, 1.0f);
         
-        return dx;
+        return trackGradient(dx);
     }
 
-    @Override
-    public JMatrix[] getParameters() {
-        return new JMatrix[]{gamma, beta, runningMean, runningVar};
-    }
 
     @Override
-    public int[] outputShape() {
-        return getPreviousLayer().outputShape();
-    }
-    @Override
-    public void updateParameters(JMatrix[] parameterUpdates) {
-        // Scale gamma gradients to prevent large updates
-        JMatrix scaledGammaUpdate = parameterUpdates[0].multiply(0.1);
-        
-        gamma.subtractInPlace(scaledGammaUpdate);
-        beta.subtractInPlace(parameterUpdates[1]);
-        
-        // Ensure gamma doesn't get too small to avoid vanishing gradients
-        for (int c = 0; c < featureSize; c++) {
-            if (Math.abs(gamma.get(c)) < 0.01f) {
-                gamma.set(c, 0.01f * Math.signum(gamma.get(c)));
-            }
-        }
-    }
-
-    
-
-    @Override
-    public JMatrix getOutput() {
-        return output;
-    }
-    @Override
-    public JMatrix getGradient() {
-        return dx;
-    }
-    @Override
-    public JMatrix[] getParameterGradients() {
-        return new JMatrix[]{dGamma, dBeta};
+    protected JMatrix[] getRunningStats() {
+        return new JMatrix[]{runningMean, runningVar};
     }
 }

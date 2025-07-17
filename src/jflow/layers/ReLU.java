@@ -6,6 +6,14 @@ import jflow.data.JMatrix;
 import jflow.layers.templates.ShapePreservingLayer;
 
 public class ReLU extends ShapePreservingLayer{
+
+    /**
+     * The ReLU activation.
+     * 
+     * <p><b>Do not instantiate directly.</b> Use the static builder method:
+     * {@code import static jflow.model.builder.*;}
+     * and call {@code ReLU()} instead of {@code new ReLU()}.
+     */
     public ReLU(){
         super("re_lu");
     }

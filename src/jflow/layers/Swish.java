@@ -5,16 +5,21 @@ import jflow.data.JMatrix;
 import jflow.layers.templates.ShapePreservingLayer;
 
 public class Swish extends ShapePreservingLayer {
-    private JMatrix lastInput;
+
+    /**
+     * The Swish activation.
+     * 
+     * <p><b>Do not instantiate directly.</b> Use the static builder method:
+     * {@code import static jflow.model.builder.*;}
+     * and call {@code Swish()} instead of {@code new Swish()}.
+     */
     public Swish() {
         super("swish");
     }
     
     @Override
     public JMatrix forward(JMatrix input, boolean training) {
-        if (training) {
-            lastInput = input;
-        }
+        cacheInput(input, training);
         int size = input.size();
         JMatrix output = input.zerosLike();
         
@@ -30,7 +35,7 @@ public class Swish extends ShapePreservingLayer {
     @Override
     public JMatrix backward(JMatrix gradient) {
         int size = gradient.size();
-        JMatrix input = lastInput; // Use original input x
+        JMatrix input = getLastInput(); // Use original input x
         JMatrix dZ = input.zerosLike();
         
         IntStream.range(0, size).parallel().forEach(i -> {

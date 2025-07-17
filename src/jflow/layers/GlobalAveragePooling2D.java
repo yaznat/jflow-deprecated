@@ -7,11 +7,18 @@ import jflow.layers.templates.ShapeAlteringLayer;
 
 public class GlobalAveragePooling2D extends ShapeAlteringLayer{
     private int batchSize;
-    int channels;
-    int height;
-    int width;
+    private int channels;
+    private int height;
+    private int width;
 
 
+    /**
+     * The GAP2D layer.
+     * 
+     * <p><b>Do not instantiate directly.</b> Use the static builder method:
+     * {@code import static jflow.model.builder.*;}
+     * and call {@code GlobalAveragePooling2D()} instead of {@code new GlobalAveragePooling2D()}.
+     */
     public GlobalAveragePooling2D() {
         super("gap_2d");
     }
@@ -29,7 +36,7 @@ public class GlobalAveragePooling2D extends ShapeAlteringLayer{
         // For each batch item and channel
         IntStream.range(0, batchSize).parallel().forEach(n -> {
             for (int c = 0; c < channels; c++) {
-                float sum = 0f;
+                double sum = 0.0;
                 // Average over height and width dimensions
                 for (int h = 0; h < height; h++) {
                     for (int w = 0; w < width; w++) {
@@ -66,10 +73,9 @@ public class GlobalAveragePooling2D extends ShapeAlteringLayer{
         return trackGradient(expanded);
     }
 
-
     @Override
     public int[] outputShape() {
         // Channels of the previous layer
-        return new int[]{-1, getPreviousLayer().outputShape()[1]};
+        return new int[]{1, getPreviousLayer().outputShape()[1]};
     }
 }

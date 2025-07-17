@@ -3,30 +3,33 @@ package jflow.layers;
 import java.util.stream.IntStream;
 
 import jflow.data.JMatrix;
-import jflow.layers.templates.TrainableLayer;
+import jflow.layers.templates.ParametricLayer;
 
-public class Embedding extends TrainableLayer {
+/**
+ * Standard embedding layer for transformer encoder-decoders. <p>
+ * Input: (batch_size, seq_len, 1, 1) <p>
+ * Output: (batch_size, seq_len, embed_dim, 1)
+ */
+public class Embedding extends ParametricLayer<Embedding> {
     private int vocabSize;
     private int embedDim;
+
+    private JMatrix embeddings;         
+    private JMatrix gradEmbeddings;     
+
     private float[] tiedWeights = null;
-    private boolean customInit = false;
-    private double mean;
-    private double stddev;
-
-    private JMatrix embeddings;         // shape: (vocabSize, embedDim)
-    private JMatrix gradEmbeddings;     // shape: (vocabSize, embedDim)
-
-    private JMatrix lastInput;          // save token IDs for backward
-
+    
+    /**
+     * The Embedding layer.
+     * 
+     * <p><b>Do not instantiate directly.</b> Use the static builder method:
+     * {@code import static jflow.model.builder.*;}
+     * and call {@code Embedding(...)} instead of {@code new Embedding(...)}.
+     */
     public Embedding(int vocabSize, int embedDim) {
         super("embedding");
         this.vocabSize = vocabSize;
         this.embedDim = embedDim;
-    }
-
-    public Embedding(int vocabSize, int embedDim, int[] inputShape) {
-        this(vocabSize, embedDim);
-        setInputShape(inputShape);
     }
 
     /**
@@ -44,45 +47,46 @@ public class Embedding extends TrainableLayer {
         return this;
     }
 
-    public Embedding initNormal(double mean, double stddev) {
-        this.customInit = true;
-        this.mean = mean;
-        this.stddev = stddev;
-        return this;
-    }
 
     @Override
     public void build(int IDnum) {
         super.build(IDnum);
-        double mean; double stddev;
-        if (customInit) {
-            mean = this.mean;
-            stddev = this.stddev;
+        if (useCustomInit()) {
+            embeddings = initCustomWeight(vocabSize, embedDim, 1, 1);
         } else{
             // Standard embedding distribution
-            mean = 0;
-            stddev = 0.02;
+            double mean = 0.0;
+            double stddev = 0.02;
+            embeddings = JMatrix.normal(vocabSize, embedDim, 1, 1, mean, stddev);
         }
 
-        embeddings = JMatrix
-            .normal(vocabSize, embedDim, 1, 1, mean, stddev) 
-            .label("embedding"); 
-        gradEmbeddings = JMatrix.zeros(vocabSize, embedDim, 1, 1).label("dEmbedding");
+        embeddings.label("embedding"); 
+        gradEmbeddings = JMatrix
+            .zeros(vocabSize, embedDim, 1, 1)
+            .label("dEmbedding");
 
         if (tiedWeights == null) {
             setNumTrainableParameters(vocabSize * embedDim);
         } else {
-            embeddings.setMatrix(tiedWeights);
+            try {
+                embeddings.setMatrix(tiedWeights);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException(
+                    "Invalid matrix size for weight tying. Expected: "
+                    + embeddings.size() + " Got: " + tiedWeights.length
+                );
+            }
             tiedWeights = null;
         }
     }
 
     @Override
     public JMatrix forward(JMatrix tokenIDs, boolean training) {
-        this.lastInput = tokenIDs;
+        // Cache tokenIDs for backpropagation
+        cacheInput(tokenIDs, training);
 
-        int batch = tokenIDs.shape()[0];
-        int seqLen = tokenIDs.shape()[1];
+        int batch = tokenIDs.shape(0);
+        int seqLen = tokenIDs.shape(1);
 
         JMatrix output = JMatrix.zeros(batch, seqLen, embedDim, 1);
 
@@ -103,17 +107,19 @@ public class Embedding extends TrainableLayer {
         int batch = dOutput.shape()[0];
         int seqLen = dOutput.shape()[1];
 
+        JMatrix lastInput = getLastInput();
+
         for (int b = 0; b < batch; b++) {
             for (int t = 0; t < seqLen; t++) {
                 int id = (int) lastInput.get(b, t, 0, 0);
                 for (int e = 0; e < embedDim; e++) {
                     double grad = dOutput.get(b, t, e, 0);
-                    gradEmbeddings.set(id, e, 0, 0, gradEmbeddings.get(id, e, 0, 0) + grad);
+                    gradEmbeddings.addTo(id, e, 0, 0, grad);
                 }
             }
         }
 
-        // Return nothing since Embedding has no input gradient
+        // Embedding layers do not pass gradients to token IDs
         return null;
     }
 
@@ -134,8 +140,7 @@ public class Embedding extends TrainableLayer {
 
     @Override
     public int[] outputShape() {
-        return new int[] {1, 1, embedDim}; // Variable batch/seq_len, fixed embed
+        // Variable batch_size/seq_len, fixed embed_dim
+        return new int[] {1, 1, embedDim}; 
     }
-
- 
 }

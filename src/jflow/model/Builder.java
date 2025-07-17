@@ -101,6 +101,14 @@ public class Builder {
     }
 
     /**
+     * Averages spatial dimensions along a specified axis.
+     */
+    public static Layer MeanPooling(int axis) {
+        return new MeanPooling(axis);
+    }
+
+
+    /**
      * A flatten layer. Flattens 4D data.
      */
     public static Flatten Flatten() {
@@ -171,7 +179,7 @@ public class Builder {
      * @param width                 The width dimension to reshape to.
      */
     public static Reshape Reshape(int channels, int height, int width) {
-        return new Reshape(channels, height, width);
+        return new Reshape(-1, channels, height, width);
     }
 
     /**
@@ -201,7 +209,8 @@ public class Builder {
     }
 
     /**
-     * The LayerNorm layer.
+     * The LayerNorm Layer.
+     * Normalizes along the embedding dimension (H in NCHW format) for each sequence position.
      */
     public static LayerNorm LayerNorm() {
         return new LayerNorm();
@@ -217,16 +226,6 @@ public class Builder {
         return new Embedding(vocabSize, embedDim);
     }
 
-    /**
-     * The Embedding layer.
-     * @param vocabSize             The number of tokens.
-     * @param embedDim              The size of embedding vectors.
-     * @param inputShape            The seqLength of the Embedding layer.
-     * @return
-     */
-    public static Embedding Embedding(int vocabSize, int embedDim, InputShape inputShape) {
-        return new Embedding(vocabSize, embedDim, inputShape.getShape());
-    }
     /**
      * Add a custom activation function to the model.
      * @param activation                A function that applies the activation in forward propagation.

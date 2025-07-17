@@ -2,7 +2,8 @@ package jflow.layers.templates;
 
 import jflow.data.JMatrix;
 
-public abstract class TrainableLayer extends ShapeAlteringLayer{
+public abstract class TrainableLayer extends ShapeAlteringLayer {
+
     public TrainableLayer(String type) {
         super(type);
     }
@@ -10,7 +11,7 @@ public abstract class TrainableLayer extends ShapeAlteringLayer{
     public abstract JMatrix[] getParameterGradients();
 
     public abstract void updateParameters(JMatrix[] parameterUpdates);
-
+    
     public abstract JMatrix[] getParameters();
 
     @Override

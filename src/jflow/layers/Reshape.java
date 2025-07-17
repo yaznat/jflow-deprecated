@@ -4,7 +4,7 @@ import jflow.data.JMatrix;
 import jflow.layers.templates.ShapeAlteringLayer;
 
 public class Reshape extends ShapeAlteringLayer{
-    private int newLength = 0;
+    private int newLength;
     private int newChannels;
     private int newHeight;
     private int newWidth;
@@ -14,6 +14,13 @@ public class Reshape extends ShapeAlteringLayer{
     private int oldLength;
 
 
+    /**
+     * The Reshape layer.
+     * 
+     * <p><b>Do not instantiate directly.</b> Use the static builder method:
+     * {@code import static jflow.model.builder.*;}
+     * and call {@code Reshape(...)} instead of {@code new Reshape(...)}.
+     */
     public Reshape(int length, int channels, int height, int width) {
         super("reshape");
         this.newLength = length;
@@ -22,12 +29,6 @@ public class Reshape extends ShapeAlteringLayer{
         this.newWidth = width;
     }
 
-    public Reshape(int channels, int height, int width) {
-        this(0, channels, height, width);
-    }
-
-    
-
     @Override
     public JMatrix forward(JMatrix input, boolean training) {
         this.oldLength = input.length();
@@ -35,11 +36,7 @@ public class Reshape extends ShapeAlteringLayer{
         this.oldHeight = input.height();
         this.oldWidth = input.width();
 
-        // Account for dense layers being transposed
-        if (getPreviousShapeInfluencer() instanceof Dense) {
-            input = input.T();
-        }
-        int newLength = (this.newLength == 0) ? input.length() : this.newLength;
+        int newLength = (this.newLength == -1) ? input.length() : this.newLength;
 
         return trackOutput(input.reshape(newLength, newChannels, newHeight, newWidth), training);
     }
@@ -53,6 +50,6 @@ public class Reshape extends ShapeAlteringLayer{
 
     @Override
     public int[] outputShape() {
-        return new int[] {-1, newChannels, newHeight, newWidth};
+        return new int[] {1, newChannels, newHeight, newWidth};
     }
 }

@@ -8,6 +8,13 @@ import jflow.layers.templates.ShapeAlteringLayer;
 public class Upsampling2D extends ShapeAlteringLayer{
     private int scaleFactor;
 
+    /**
+     * The Upsampling2D layer.
+     * 
+     * <p><b>Do not instantiate directly.</b> Use the static builder method:
+     * {@code import static jflow.model.builder.*;}
+     * and call {@code Upsampling2D(...)} instead of {@code new Upsampling2D(...)}.
+     */
     public Upsampling2D(int scaleFactor) {
         super("up_sampling_2d");
         this.scaleFactor = scaleFactor;

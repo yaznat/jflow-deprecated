@@ -6,6 +6,14 @@ import jflow.data.JMatrix;
 import jflow.layers.templates.ShapePreservingLayer;
 
 public class Softmax extends ShapePreservingLayer{
+
+    /**
+     * The Softmax activation.
+     * 
+     * <p><b>Do not instantiate directly.</b> Use the static builder method:
+     * {@code import static jflow.model.builder.*;}
+     * and call {@code Softmax()} instead of {@code new Softmax()}.
+     */
     public Softmax() {
         super("softmax");
     }
@@ -42,6 +50,7 @@ public class Softmax extends ShapePreservingLayer{
 
     @Override
     public JMatrix backward(JMatrix gradient) {
+        // Cross entropy: predicted - actual
         return trackGradient(getOutput().subtract(gradient));
     }
 }

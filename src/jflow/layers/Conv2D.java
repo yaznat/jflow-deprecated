@@ -3,11 +3,11 @@ package jflow.layers;
 import java.util.stream.IntStream;
 
 import jflow.data.JMatrix;
-import jflow.layers.templates.TrainableLayer;
+import jflow.layers.templates.ParametricLayer;
 
 import java.util.concurrent.ThreadLocalRandom;
 
-public class Conv2D extends TrainableLayer {
+public class Conv2D extends ParametricLayer<Conv2D> {
     private JMatrix filters;
     private JMatrix dFilters;
     private JMatrix lastInput;

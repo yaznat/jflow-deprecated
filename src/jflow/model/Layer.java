@@ -13,6 +13,7 @@ public abstract class Layer {
     // Data
     private JMatrix output;
     private JMatrix gradient;
+    private JMatrix lastInput;
 
     // Shape and configuration
     private int[] inputShape;
@@ -21,7 +22,6 @@ public abstract class Layer {
     private int IDnum;
     private final boolean isShapeInfluencer;
     private boolean gradientStorageDisabled = false;
-
         
 
     public abstract JMatrix forward(JMatrix input, boolean training);
@@ -29,9 +29,6 @@ public abstract class Layer {
     public abstract JMatrix backward(JMatrix input);
 
     public abstract int[] outputShape();
-
-    protected abstract JMatrix[] forwardDebugData();
-    protected abstract JMatrix[] backwardDebugData();
 
     protected Layer(String type, boolean isShapeInfluencer) {
         this.type = type;
@@ -49,7 +46,7 @@ public abstract class Layer {
         this.nextLayer = nextLayer;
     }
 
-    protected void setPreviousLayer(Layer previousLayer) {
+    public void setPreviousLayer(Layer previousLayer) {
         this.previousLayer = previousLayer;
     }
 
@@ -95,7 +92,24 @@ public abstract class Layer {
         } else {
             this.gradient = gradient;
         }
+        clearInputCache(); // Not needed after backward() is complete
+
         return gradient;
+    }
+
+    protected void cacheInput(JMatrix input, boolean training) {
+        if (training) {
+            lastInput = input;
+        }
+    }
+
+    private void clearInputCache() {
+        lastInput = null;
+    }
+
+
+    protected JMatrix getLastInput() {
+        return lastInput;
     }
 
     protected void setInputShape(int[] inputShape) {
@@ -171,6 +185,20 @@ public abstract class Layer {
             prevLayer = prevLayer.getPreviousLayer();
         }
         return count;
+    }
+
+    protected JMatrix[] forwardDebugData() {
+        if (getOutput() == null) {
+            return null;
+        }
+        return new JMatrix[]{getOutput().label("activation")};
+    }
+
+    protected JMatrix[] backwardDebugData() {
+        if (getGradient() == null) {
+            return null;
+        }
+        return new JMatrix[]{getGradient().label("dActivation")};
     }
 
     public void printForwardDebug() {

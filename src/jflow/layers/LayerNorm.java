@@ -3,60 +3,46 @@ package jflow.layers;
 import java.util.stream.IntStream;
 
 import jflow.data.JMatrix;
-import jflow.layers.templates.TrainableLayer;
+import jflow.layers.templates.NormalizationLayer;
 
-/**
- * Layer Normalization implementation matching GPT-2's approach.
- * Normalizes along the embedding dimension (H in NCHW format) for each sequence position.
- * Based on the paper "Layer Normalization" (Jimmy Lei Ba et al., 2016)
- */
-public class LayerNorm extends TrainableLayer {
-    private JMatrix gamma;
-    private JMatrix dGamma;
-    private JMatrix beta;
-    private JMatrix dBeta;
-
+public class LayerNorm extends NormalizationLayer<LayerNorm> {
     // Cached for backpropagation
     private JMatrix normalizedCache;
-    private float[] varianceCache;
+    private JMatrix varianceCache;
+    private JMatrix meanCache;
 
-    private final static float EPSILON = 1e-5f;
+    private int embedDim;
 
-    private int embedDim;  // Size of the embedding dimension (H in NCHW format)
-
+    /**
+     * The LayerNorm layer.
+     * 
+     * <p><b>Do not instantiate directly.</b> Use the static builder method:
+     * {@code import static jflow.model.builder.*;}
+     * and call {@code LayerNorm()} instead of {@code new LayerNorm()}.
+     */
     public LayerNorm() {
         super("layer_norm");
     }
     
     @Override
-    public void build(int IDnum) {
-        super.build(IDnum);
-
+    protected int[] parameterShape() {
         int[] prevShape = getPreviousLayer().outputShape();
-        // In NCHW format for GPT-2: 
-        // N = batch size
-        // C = sequence length
-        // H = embedding dimension (normalize across this)
-        // W = 1
-        embedDim = prevShape[2];  // H dimension
-        
-        setNumTrainableParameters(2 * embedDim);
 
-        // Initialize gamma to ones and beta to zeros
-        gamma = JMatrix.ones(embedDim, 1, 1, 1).setName("gamma");
-        beta = JMatrix.zeros(embedDim, 1, 1, 1).setName("beta");
+        // Normalize along H in NCHW - this is embed_dim in transformers
+        this.embedDim = prevShape[2];
 
-        // Initialize gradients as zeros
-        dGamma = gamma.zerosLike().setName("dGamma");
-        dBeta = beta.zerosLike().setName("dBeta");
+        return new int[]{embedDim, 1, 1, 1};
     }
-
 
 
     @Override
     public JMatrix forward(JMatrix input, boolean training) {
-        int batchSize = input.length();      // N
-        int seqLength = input.channels();    // C
+        JMatrix gamma = getGamma();
+        JMatrix beta = getBeta();
+        final double EPSILON = getEpsilon();
+
+        int batchSize = input.shape(0);    
+        int seqLength = input.shape(1); 
         int numPositions = batchSize * seqLength;
 
         JMatrix output = input.zerosLike();
@@ -64,22 +50,22 @@ public class LayerNorm extends TrainableLayer {
         // Cache for backpropagation
         if (training) {
             this.normalizedCache = input.zerosLike();
-            this.varianceCache = new float[numPositions];
+            this.varianceCache = JMatrix.zeros(numPositions, 1, 1, 1);
+            this.meanCache = JMatrix.zeros(numPositions, 1, 1, 1);
         }
 
-        // Process each position (batch × seqLen) 
         IntStream.range(0, numPositions).parallel().forEach(posIdx -> {
             int batchIdx = posIdx / seqLength;
             int seqIdx = posIdx % seqLength;
             
-            // Calculate mean for this position
+            // Calculate mean
             float mean = 0;
             for (int e = 0; e < embedDim; e++) {
                 mean += input.get(batchIdx, seqIdx, e, 0);
             }
             mean /= embedDim;
             
-            // Calculate variance for this position
+            // Calculate variance
             float variance = 0;
             for (int e = 0; e < embedDim; e++) {
                 float diff = input.get(batchIdx, seqIdx, e, 0) - mean;
@@ -89,59 +75,59 @@ public class LayerNorm extends TrainableLayer {
             
             // Cache statistics for backpropagation
             if (training) {
-                varianceCache[posIdx] = variance;
+                varianceCache.set(posIdx, variance);
+                meanCache.set(posIdx, mean);
             }
-            
-            float invStdDev = 1.0f / (float)Math.sqrt(variance + EPSILON);
-            
+                        
             // Normalize, scale, and shift
+            float stdDev = (float)Math.sqrt(variance + EPSILON);
+            float invStdDev = 1.0f / stdDev;
+
             for (int e = 0; e < embedDim; e++) {
+                // Normalize to mean ≈ 0 and variance ≈ 1
                 float normalized = (input.get(batchIdx, seqIdx, e, 0) - mean) * invStdDev;
-                
+
+                // Cache for backpropagation
                 if (training) {
                     normalizedCache.set(batchIdx, seqIdx, e, 0, normalized);
                 }
-                
+ 
                 // Scale and shift
                 float result = normalized * gamma.get(e) + beta.get(e);
                 output.set(batchIdx, seqIdx, e, 0, result);
-            }
+            }       
         });
         return trackOutput(output, training);
     }
 
     @Override
     public JMatrix backward(JMatrix dOutput) {
-        int batchSize = dOutput.length();
-        int seqLength = dOutput.channels();
+        JMatrix gamma = getGamma();
+        JMatrix dGamma = getDGamma();
+        JMatrix dBeta = getDBeta();
+        final double EPSILON = getEpsilon();
+
+        int batchSize = dOutput.shape(0);
+        int seqLength = dOutput.shape(1);
         int numPositions = batchSize * seqLength;
-
         JMatrix dInput = dOutput.zerosLike();
-
-        // Calculate gradients for each position
+        
+        // Process each position for input gradients
         IntStream.range(0, numPositions).parallel().forEach(posIdx -> {
             int batchIdx = posIdx / seqLength;
             int seqIdx = posIdx % seqLength;
-            
-            float variance = varianceCache[posIdx];
+            float variance = varianceCache.get(posIdx);
             float invStdDev = 1.0f / (float)Math.sqrt(variance + EPSILON);
             
-            // Calculate sum terms for the gradient formula
-            float sumDy = 0;
-            float sumDyxHat = 0;
-            
+            // Calculate gradient terms for this position
+            float sumDyGamma = 0;
+            float sumDyGammaXhat = 0;
             for (int e = 0; e < embedDim; e++) {
                 float dy = dOutput.get(batchIdx, seqIdx, e, 0);
                 float xHat = normalizedCache.get(batchIdx, seqIdx, e, 0);
-                
-                // Accumulate parameter gradients
-                synchronized (dGamma) {
-                    dGamma.set(e, dGamma.get(e) + dy * xHat);
-                    dBeta.set(e, dBeta.get(e) + dy);
-                }
-                
-                sumDy += dy;
-                sumDyxHat += dy * xHat;
+                float dyGamma = dy * gamma.get(e);
+                sumDyGamma += dyGamma;
+                sumDyGammaXhat += dyGamma * xHat;
             }
             
             // Calculate input gradients
@@ -149,37 +135,32 @@ public class LayerNorm extends TrainableLayer {
                 float dy = dOutput.get(batchIdx, seqIdx, e, 0);
                 float xHat = normalizedCache.get(batchIdx, seqIdx, e, 0);
                 
-                // Following the chain rule for layer normalization
-                float term1 = dy * gamma.get(e);
-                float term2 = sumDy / embedDim;
-                float term3 = xHat * sumDyxHat / embedDim;
-                
-                float dx = invStdDev * (term1 - (term2 + term3));
+                // Layer norm gradient formula
+                float dyGamma = dy * gamma.get(e);
+                float dx = invStdDev * (dyGamma - (sumDyGamma / embedDim) - 
+                                      (xHat * sumDyGammaXhat / embedDim));
                 dInput.set(batchIdx, seqIdx, e, 0, dx);
             }
         });
-
+        
+        // Single-threaded gradient accumulation - faster than synchronization
+        for (int b = 0; b < batchSize; b++) {
+            for (int s = 0; s < seqLength; s++) {
+                for (int e = 0; e < embedDim; e++) {
+                    float dy = dOutput.get(b, s, e, 0);
+                    float xHat = normalizedCache.get(b, s, e, 0);
+                    
+                    dGamma.addTo(e, dy * xHat);
+                    dBeta.addTo(e, dy);
+                }
+            }
+        }
+        
         return trackGradient(dInput);
     }
 
     @Override
-    public JMatrix[] getParameterGradients() {
-        return new JMatrix[]{dGamma, dBeta};
-    }
-
-    @Override
-    public void updateParameters(JMatrix[] parameterUpdates) {
-        gamma.subtractInPlace(parameterUpdates[0]);
-        beta.subtractInPlace(parameterUpdates[1]);
-    }
-
-    @Override
-    public JMatrix[] getParameters() {
-        return new JMatrix[]{gamma, beta};
-    }
-
-    @Override
-    public int[] outputShape() {
-        return getPreviousLayer().outputShape();
+    protected JMatrix[] getRunningStats() {
+        return null; // LayerNorm has no running stats.
     }
 }
