@@ -1,6 +1,6 @@
 package jflow.data;
+import java.util.Random;
 import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.IntStream;
 
 public class JMatrix {
@@ -45,13 +45,19 @@ public class JMatrix {
             length, channels, height, width);
     }
 
+    private static void validateShape(int[] shape) {
+        if (shape.length != 4) {
+            throw new IllegalArgumentException("Invalid shape. Only length 4 is permitted.");
+        }
+    }
+
     /**
      * Initialize a new JMatrix with default values of zero.
      * JMatrix is in (N, C, H, W) format.
-     * @param length                The batch dimension.
-     * @param channels              The channel dimension.
-     * @param height                The height dimension.
-     * @param width                 The width dimension.
+     * @param length                the batch dimension.
+     * @param channels              the channel dimension.
+     * @param height                the height dimension.
+     * @param width                 the width dimension.
      */
     public static JMatrix zeros(int length, int channels, int height, int width) {
         return new JMatrix(length, channels, height, width);
@@ -60,23 +66,21 @@ public class JMatrix {
     /**
      * Initialize a new JMatrix with default values of zero.
      * JMatrix is in (N, C, H, W) format.
-     * @param shape                The desired shape (N, channels, height, width).
+     * @param shape                the desired shape (N, channels, height, width).
      * @throws IllegalArgumentException if the length of <b>shape</b> is not four.
      */
     public static JMatrix zeros(int[] shape) {
-        if (shape.length != 4) {
-            throw new IllegalArgumentException("Invalid shape. Only length 4 is permitted.");
-        }
+        validateShape(shape);
         return new JMatrix(shape[0], shape[1], shape[2], shape[3]);
     }
 
     /**
      * Initialize a new JMatrix with default values of one.
      * JMatrix is in (N, C, H, W) format.
-     * @param length                The batch dimension.
-     * @param channels              The channel dimension.
-     * @param height                The height dimension.
-     * @param width                 The width dimension.
+     * @param length                the batch dimension.
+     * @param channels              the channel dimension.
+     * @param height                the height dimension.
+     * @param width                 the width dimension.
      */
     public static JMatrix ones(int length, int channels, int height, int width) {
         return new JMatrix(length, channels, height, width).fill(1.0);
@@ -85,24 +89,22 @@ public class JMatrix {
     /**
      * Initialize a new JMatrix with default values of one.
      * JMatrix is in (N, C, H, W) format.
-     * @param shape                The desired shape (N, channels, height, width).
+     * @param shape                the desired shape (N, channels, height, width).
      * @throws IllegalArgumentException if the length of <b>shape</b> is not four.
      */
     public static JMatrix ones(int[] shape) {
-        if (shape.length != 4) {
-            throw new IllegalArgumentException("Invalid shape. Only length 4 is permitted.");
-        }
+        validateShape(shape);
         return new JMatrix(shape[0], shape[1], shape[2], shape[3]).fill(1.0);
     }
 
     /**
      * Wrap an array in a new JMatrix.
      * JMatrix is in (N, C, H, W) format.
-     * @param values                The values to wrap in this JMatrix.
-     * @param length                The batch dimension.
-     * @param channels              The channel dimension.
-     * @param height                The height dimension.
-     * @param width                 The width dimension.
+     * @param values                the values to wrap in this JMatrix.
+     * @param length                the batch dimension.
+     * @param channels              the channel dimension.
+     * @param height                the height dimension.
+     * @param width                 the width dimension.
      * @throws IllegalArgumentException if the dimensional information 
      * doesn't correspond to the length of <b>values</b>.
      */
@@ -123,26 +125,24 @@ public class JMatrix {
     /**
      * Wrap an array in a new JMatrix.
      * JMatrix is in (N, C, H, W) format.
-     * @param values                The values to wrap in this JMatrix.
-     * @param shape                 The desired shape (N, channels, height, width).
+     * @param values           the values to wrap in this JMatrix.
+     * @param shape            the desired shape (N, channels, height, width).
      * @throws IllegalArgumentException if the length of <b>shape</b> is not four, 
      * or if the dimensional information doesn't correspond to the length of <b>values</b>.
      */
     public static JMatrix wrap(float[] values, int[] shape) {
-        if (shape.length != 4) {
-            throw new IllegalArgumentException("Invalid shape. Only length 4 is permitted.");
-        }
+        validateShape(shape);
         return wrap(values, shape[0], shape[1], shape[2], shape[3]);
     }
 
     /**
      * Create a JMatrix with uniform distribution in a specified range.
-     * @param length                        the N dimension of the JMatrix.
-     * @param channels                      the channel dimension of the JMatrix.
-     * @param height                        the height dimension of the JMatrix.
-     * @param width                         the width dimension of the JMatrix.
-     * @param min                           the minimum value, inclusive.
-     * @param max                           the maximum value, exclusive.
+     * @param length          the N dimension of the JMatrix.
+     * @param channels        the channel dimension of the JMatrix.
+     * @param height          the height dimension of the JMatrix.
+     * @param width           the width dimension of the JMatrix.
+     * @param min             the minimum value, inclusive.
+     * @param max             the maximum value, exclusive.
      */
     public static JMatrix uniform(
         int length,
@@ -154,17 +154,36 @@ public class JMatrix {
     ) {
         int size = length * channels * height * width;
         float[] noise = new float[size];
+        double range = max - min;
 
-        IntStream.range(0, size).parallel().forEach(i -> {
-            // Hash-based unique seed per index
-            long localSeed = seed ^ Long.rotateLeft(i * 0x9E3779B97F4A7C15L, 17);
+        int chunkSize = 1024;
+
+        IntStream.range(0, (size + chunkSize - 1) / chunkSize).parallel().forEach(chunk -> {
+            int start = chunk * chunkSize;
+            int end = Math.min(start + chunkSize, size);
+
+            // Hash-based unique seed per chunk
+            long localSeed = JMatrix.seed ^ Long.rotateLeft(chunk * 0x9E3779B97F4A7C15L, 17);
             Random rng = new Random(localSeed);
 
-            // Uniform distribution: [min, max)
-            noise[i] = (float)(rng.nextDouble() * range + min);
+            for (int i = start; i < end; i ++) {
+                // Uniform distribution: [min, max)
+                noise[i] = (float)(rng.nextDouble() * range + min);
+            }
         });
 
         return JMatrix.wrap(noise, length, channels, height, width);
+    }
+
+    /**
+     * Create a JMatrix with uniform distribution in a specified range.
+     * @param shape         the shape of the JMatrix.
+     * @param min           the minimum value, inclusive.
+     * @param max           the maximum value, exclusive.
+     */
+    public static JMatrix uniform(int[] shape, double min, double max) {
+        validateShape(shape);
+        return JMatrix.uniform(shape[0], shape[1], shape[2], shape[3], min, max);
     }
 
     /**
@@ -188,20 +207,39 @@ public class JMatrix {
         int size = length * channels * height * width;
         float[] noise = new float[size];
 
-        IntStream.range(0, size).parallel().forEach(i -> {
-            // Hash-based unique seed per index
-            long localSeed = seed ^ Long.rotateLeft(i * 0x9E3779B97F4A7C15L, 17);
+        int chunkSize = 1024;
+
+        IntStream.range(0, (size + chunkSize - 1) / chunkSize).parallel().forEach(chunk -> {
+            int start = chunk * chunkSize;
+            int end = Math.min(start + chunkSize, size);
+
+            // Hash-based unique seed per chunk
+            long localSeed = JMatrix.seed ^ Long.rotateLeft(chunk * 0x9E3779B97F4A7C15L, 17);
             Random rng = new Random(localSeed);
 
-            // Box-Muller transform
-            double u1 = rng.nextDouble();
-            double u2 = rng.nextDouble();
-            double z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-            noise[i] = (float)(z0 * stddev + mean);
+            for (int i = start; i < end; i++) {
+                // Box-Muller transform
+                double u1 = rng.nextDouble();
+                double u2 = rng.nextDouble();
+
+                double z0 = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+
+                noise[i] = (float)(z0 * stddev + mean);
+            }
         });
 
         return JMatrix.wrap(noise, length, channels, height, width);
-        
+    }
+
+    /**
+     * Create a JMatrix with normally distributed values.
+     * @param shape         the shape of the JMatrix.
+     * @param mean          the mean of the normal distribution.
+     * @param stddev        the standard deviation of the normal distribution.
+     */
+    public static JMatrix normal(int[] shape, double mean, double stddev) {
+        validateShape(shape);
+        return JMatrix.normal(shape[0], shape[1], shape[2], shape[3], mean, stddev);
     }
 
     /**
@@ -210,6 +248,13 @@ public class JMatrix {
      */
     public static void setSeed(long seed) {
         JMatrix.seed = seed;
+    }
+
+    /**
+     * Acquire the current JMatrix seed.
+     */
+    public static long currentSeed() {
+        return JMatrix.seed;
     }
 
     /**
@@ -293,11 +338,12 @@ public class JMatrix {
     /**
      * Set the wrapped array to a new value. Resize allowed.
      * @param matrix                            The new array to replace the original. 
-     * @param shape                             The four dimensional shape of the new matrix.
+     * @param shape                             The 4D shape of the new matrix.
      * @exception IllegalArgumentException      if: <ul> <li>  the length of shape is not four. </li> 
      * <li> the reported number of elements is unequal to the length of the matrix. </li> </ul> 
      */
     public JMatrix setMatrix(float[] matrix, int[] shape) {
+        validateShape(shape);
         int newSize = length * channels * height * width;
         if (matrix.length != newSize) {
             throw new IllegalArgumentException(
