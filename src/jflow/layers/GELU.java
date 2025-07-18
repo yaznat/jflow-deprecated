@@ -21,7 +21,7 @@ public class GELU extends ShapePreservingLayer {
     
     /*
      * Approximation: GELU(x) ≈ 0.5 * x * (1 + tanh(√(2/π) * (x + 0.044715 * x³)))
-     * Used in the original BERT paper.
+     * From the original GELU paper: https://arxiv.org/abs/1606.08415
      */ 
     @Override
     public JMatrix forward(JMatrix input, boolean training) {
