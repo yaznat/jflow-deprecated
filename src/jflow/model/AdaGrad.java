@@ -5,7 +5,7 @@ import java.util.Map;
 import jflow.data.JMatrix;
 import jflow.layers.templates.TrainableLayer;
 
-public class AdaGrad extends Optimizer {
+public class AdaGrad extends Optimizer<AdaGrad> {
     private double learningRate;
     private double epsilon = 1e-8;  // Small constant for numerical stability
 
@@ -21,25 +21,7 @@ public class AdaGrad extends Optimizer {
     }
 
     @Override
-    public void apply(HashMap<String, JMatrix[]> layerGradients) {
-        boolean needsClipping = false;
-        double clipScale = 1.0;
-        if (useClipping()) {
-            double globalGradNormSquared = 0.0;
-            for (JMatrix[] grads : layerGradients.values()) {
-                for (JMatrix grad : grads) {
-                    double frobeniusNorm = grad.l2Norm();
-                    globalGradNormSquared += frobeniusNorm * frobeniusNorm;
-                }
-            }
-
-            double globalGradNorm = Math.sqrt(globalGradNormSquared);
-            
-            if (useClipping() && globalGradNorm > getClipNorm()) {
-                clipScale = getClipNorm() / (globalGradNorm + 1e-6);  // epsilon for numerical stability
-                needsClipping = true;
-            }
-        }
+    public void applyUpdates(HashMap<String, JMatrix[]> layerGradients) {
         for (Map.Entry<String, JMatrix[]> entry : layerGradients.entrySet()) {
             TrainableLayer layer = getLayerID().get(entry.getKey());
             JMatrix[] gradients = entry.getValue();
@@ -50,11 +32,6 @@ public class AdaGrad extends Optimizer {
                 JMatrix weightGradients = gradients[i];
                 JMatrix accumSquared = accumSquaredGrads[i];
 
-                // Clip if needed
-                if (needsClipping) {
-                    weightGradients.multiplyInPlace(clipScale);
-                }
-                
                 // Accumulate squared gradients
                 accumSquared.addInPlace(weightGradients.multiply(weightGradients));
 

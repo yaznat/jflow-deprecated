@@ -666,14 +666,14 @@ public class Sequential{
                 }
             }
     
-            // Save optimizer weights
-            JMatrix[] optWeights = optimizer.getWeights();
-            IntStream.range(0, optWeights.length)
+            // Save optimizer moments
+            JMatrix[] moments = optimizer.getSerializable();
+            IntStream.range(0, moments.length)
                 .parallel()
                 .forEach(i -> {
-                    JMatrix weight = optWeights[i];
-                    String filePath = path + "/" + optimizer.getName() + "/" + weight.label() + ".bin";
-                    saveWeightToBinary(filePath, weight);
+                    JMatrix moment = moments[i];
+                    String filePath = path + "/" + optimizer.getName() + "/" + moment.label() + ".bin";
+                    saveWeightToBinary(filePath, moment);
                 });
         }
     
@@ -731,14 +731,14 @@ public class Sequential{
                 }
             }
 
-            // Load optimizer weights
-            JMatrix[] weights = optimizer.getWeights();
-            IntStream.range(0, weights.length)
+            // Load optimizer moments
+            JMatrix[] moments = optimizer.getSerializable();
+            IntStream.range(0, moments.length)
                 .parallel()
                 .forEach(i -> {
-                    JMatrix weight = weights[i];
-                    String filePath = path + "/" + optimizer.getName() + "/" + weight.label() + ".bin";
-                    loadWeightFromBinary(filePath, weight);
+                    JMatrix moment = moments[i];
+                    String filePath = path + "/" + optimizer.getName() + "/" + moment.label() + ".bin";
+                    loadWeightFromBinary(filePath, moment);
                 });
         }
     }

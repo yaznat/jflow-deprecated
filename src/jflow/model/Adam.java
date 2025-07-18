@@ -6,7 +6,7 @@ import java.util.Map;
 import jflow.data.JMatrix;
 import jflow.layers.templates.TrainableLayer;
 
-public class Adam extends Optimizer{
+public class Adam extends Optimizer<Adam>{
     private double beta1; // Momentum coefficient of the first moment
     private double beta2; // Momentum coefficient of the second moment
     private double learningRate;
@@ -35,27 +35,9 @@ public class Adam extends Optimizer{
     }
 
     @Override
-    public void apply(HashMap<String, JMatrix[]> layerGradients) {
+    public void applyUpdates(HashMap<String, JMatrix[]> layerGradients) {
         timesteps++;
 
-        boolean needsClipping = false;
-        double clipScale = 1.0;
-        if (useClipping()) {
-            double globalGradNormSquared = 0.0;
-            for (JMatrix[] grads : layerGradients.values()) {
-                for (JMatrix grad : grads) {
-                    double l2Norm = grad.l2Norm();
-                    globalGradNormSquared += l2Norm * l2Norm;
-                }
-            }
-
-            double globalGradNorm = Math.sqrt(globalGradNormSquared);
-            
-            if (useClipping() && globalGradNorm > getClipNorm()) {
-                clipScale = getClipNorm() / (globalGradNorm + 1e-6);  // epsilon for numerical stability
-                needsClipping = true;
-            }
-        }
         for (Map.Entry<String, JMatrix[]> entry : layerGradients.entrySet()) {
             TrainableLayer layer = getLayerID().get(entry.getKey());
 
@@ -71,10 +53,6 @@ public class Adam extends Optimizer{
                 JMatrix mWeights = moments[2 * i];
                 JMatrix vWeights = moments[2 * i + 1];
 
-                // Clip if needed
-                if (needsClipping) {
-                    weightGradients.multiplyInPlace(clipScale);
-                }
                 // Update first moments (momentum)
                 mWeights.multiplyInPlace(beta1).addInPlace(weightGradients.multiply(1 - beta1));
 
