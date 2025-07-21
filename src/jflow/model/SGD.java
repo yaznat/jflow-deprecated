@@ -6,7 +6,7 @@ import java.util.Map;
 import jflow.data.JMatrix;
 import jflow.layers.templates.TrainableLayer;
 
-public class SGD extends Optimizer<SGD> {
+public class SGD extends Optimizer {
     private double learningRate;
     private double momentum = 0.0; // Default to vanilla SGD (no momentum)
     private boolean useNesterov = false;

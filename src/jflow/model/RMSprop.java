@@ -5,7 +5,7 @@ import java.util.Map;
 import jflow.data.JMatrix;
 import jflow.layers.templates.TrainableLayer;
 
-public class RMSprop extends Optimizer<RMSprop> {
+public class RMSprop extends Optimizer {
     private double learningRate;
     private double decay = 0.9;  // Decay rate for accumulated squared gradients
     private double epsilon = 1e-8;  // Small constant for numerical stability

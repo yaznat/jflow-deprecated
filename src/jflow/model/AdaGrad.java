@@ -5,7 +5,7 @@ import java.util.Map;
 import jflow.data.JMatrix;
 import jflow.layers.templates.TrainableLayer;
 
-public class AdaGrad extends Optimizer<AdaGrad> {
+public class AdaGrad extends Optimizer {
     private double learningRate;
     private double epsilon = 1e-8;  // Small constant for numerical stability
 

@@ -6,7 +6,7 @@ import java.util.Map;
 import jflow.data.JMatrix;
 import jflow.layers.templates.TrainableLayer;
 
-public class Adam extends Optimizer<Adam>{
+public class Adam extends Optimizer {
     private double beta1; // Momentum coefficient of the first moment
     private double beta2; // Momentum coefficient of the second moment
     private double learningRate;

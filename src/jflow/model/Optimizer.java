@@ -7,7 +7,7 @@ import java.util.Map;
 import jflow.data.JMatrix;
 import jflow.layers.templates.TrainableLayer;
 
-public abstract class Optimizer<T extends Optimizer<T>> {
+public abstract class Optimizer {
     // LinkedHashMap preserves retrieval order - necessary since moments are identified by order, not name.
     private LinkedHashMap<TrainableLayer, JMatrix[]> layerMoments = new LinkedHashMap<>();
     private HashMap<String, TrainableLayer> layerID = new HashMap<>();
@@ -27,10 +27,9 @@ public abstract class Optimizer<T extends Optimizer<T>> {
      * the the threshold, all are multiplied by {@code threshold / global_norm}.
      * @param threshold the l2 norm threshold.
      */
-    @SuppressWarnings("unchecked")
-    public T clipNorm(double threshold) {
+    public Optimizer clipNorm(double threshold) {
         this.clipThreshold = Math.abs(threshold); // Prevent negative values
-        return (T) this;
+        return this;
     }
 
     private boolean useClipping() {
