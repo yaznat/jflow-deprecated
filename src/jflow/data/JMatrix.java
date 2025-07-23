@@ -10,6 +10,7 @@ public class JMatrix {
     private int height;
     private int width;
     private String name = null;
+    private static long seed = System.nanoTime();
     /*
      * Cut-off size for matrices passed to matmul(). 
      * Matrices with all dimensions under the cut-off

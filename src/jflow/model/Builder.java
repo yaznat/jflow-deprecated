@@ -101,14 +101,6 @@ public class Builder {
     }
 
     /**
-     * Averages spatial dimensions along a specified axis.
-     */
-    public static Layer MeanPooling(int axis) {
-        return new MeanPooling(axis);
-    }
-
-
-    /**
      * A flatten layer. Flattens 4D data.
      */
     public static Flatten Flatten() {
