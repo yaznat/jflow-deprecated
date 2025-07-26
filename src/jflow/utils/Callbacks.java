@@ -276,7 +276,7 @@ public class Callbacks {
     }
 
     private static String formatShapeLabel(int[] shape) {
-        int N = shape[0], C = shape[1], H = shape[2], W = shape[3];
+        int C = shape[1], H = shape[2], W = shape[3];
     
         if (H > 1 && W > 1)
             return AnsiCodes.TEAL + "(N, C, H, W)" + AnsiCodes.ORANGE + ":";
@@ -286,7 +286,7 @@ public class Callbacks {
             return AnsiCodes.TEAL + "(N, C, F)" + AnsiCodes.ORANGE + ":"; 
         if (C > 1)
             return AnsiCodes.TEAL + "(N, F)" + AnsiCodes.ORANGE + ":";
-        return AnsiCodes.TEAL + "(N,)" + AnsiCodes.ORANGE + ":";
+        return AnsiCodes.TEAL + "(F,)" + AnsiCodes.ORANGE + ":";
     }
 
     private static String formatShape(int[] shape) {

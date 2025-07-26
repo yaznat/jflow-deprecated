@@ -41,8 +41,9 @@ public class Dataloader {
      * with a small increase in duration.
      * @param enabled               Set the state of low memory mode.
      */
-    public void setLowMemoryMode(boolean enabled) {
+    public Dataloader setLowMemoryMode(boolean enabled) {
         lowMemoryMode = enabled;
+        return this;
     }
 
     /**
@@ -56,12 +57,13 @@ public class Dataloader {
      * Applies a constructed transform to all images in the Dataloader.
      * @param transform                 A transform containing image functions.
      */
-    public void applyTransform(Transform transform) {
+    public Dataloader applyTransform(Transform transform) {
         for (Image image : images) {
             for (Function<JMatrix, JMatrix> func : transform.getTransforms()) {
                 image.addTransform(func);
             }
         }
+        return this;
     }
 
     /**
@@ -220,17 +222,19 @@ public class Dataloader {
       * Sets the seed of the Dataloader for reproducability.
       * @param seed The desired seed for random operations.
       */
-    public void setSeed(long seed) {
+    public Dataloader setSeed(long seed) {
         random.setSeed(seed);
+        return this;
     }
 
     /**
       * Separates train images into batches.
       * @param batchSize The desired batch size.
       */
-    public void batch(int batchSize) {
+    public Dataloader batch(int batchSize) {
         this.batchSize = batchSize;
-        this.numBatches = trainImages.size()/batchSize;
+        this.numBatches = trainImages.size() / batchSize;
+        return this;
     }
 
     /**
@@ -399,7 +403,7 @@ public class Dataloader {
       * @param percentVal                       The percentage of images in the validation set (0.0 to 1.0).
       * @param percentTest                      The percentage of images in the test set (0.0 to 1.0).
       */
-      public void valTestSplit(double percentVal, double percentTest) {
+      public Dataloader valTestSplit(double percentVal, double percentTest) {
         Collections.shuffle(images, random);
 
         int numValImages = (int) (images.size() * percentVal);
@@ -413,6 +417,7 @@ public class Dataloader {
         System.out.println("Train images: " + trainImages.size());
         System.out.println("Val images: " + valImages.size());
         System.out.println("Test images: " + testImages.size());
+        return this;
     }
 
     /**

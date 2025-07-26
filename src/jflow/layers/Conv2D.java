@@ -310,16 +310,14 @@ public class Conv2D extends ParametricLayer<Conv2D> {
                                float[] kernel, int filterIdx, float bias, String padding) {
         // Calculate padding and output dimensions
         int outputHeight, outputWidth;
-        int padTop = 0, padBottom = 0, padLeft = 0, padRight = 0;
+        int padTop = 0, padLeft = 0;
         
         if (padding.equals("same_padding")) {
             int padTotal_h = Math.max(0, (inputHeight - 1) * stride + filterSize - inputHeight);
             int padTotal_w = Math.max(0, (inputWidth - 1) * stride + filterSize - inputWidth);
             
             padTop = padTotal_h / 2;
-            padBottom = padTotal_h - padTop;
             padLeft = padTotal_w / 2;
-            padRight = padTotal_w - padLeft;
             
             outputHeight = (int)Math.ceil((double)inputHeight / stride);
             outputWidth = (int)Math.ceil((double)inputWidth / stride);

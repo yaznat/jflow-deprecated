@@ -1,6 +1,5 @@
 package jflow.data;
 import java.util.ArrayList;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
 
 public class Transform {
@@ -141,7 +140,7 @@ public class Transform {
                         srcY = Math.min(srcY, oldHeight - 1);
                         srcX = Math.min(srcX, oldWidth - 1);
                         
-                        resized.set(1, c, i, j, image.get(1, c, srcY, srcX));
+                        resized.set(0, c, i, j, image.get(0, c, srcY, srcX));
                     }
                 }
             }

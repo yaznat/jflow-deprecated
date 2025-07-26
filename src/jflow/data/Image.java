@@ -117,7 +117,7 @@ public class Image {
 
     public int getWidth() {
         loadingSequence();
-        JMatrix copyReference = originalImage;
+        JMatrix copyReference = xData;
         if (lowMemoryMode) {
             unload();
         }
@@ -130,7 +130,7 @@ public class Image {
 
     public int getHeight() {
         loadingSequence();
-        JMatrix copyReference = originalImage;
+        JMatrix copyReference = xData;
         if (lowMemoryMode) {
             unload();
         }

@@ -19,7 +19,7 @@ public abstract class FunctionalLayer extends ShapeAlteringLayer {
         }
     }
     
-    public abstract Layer[] defineLayers();
+    protected abstract Layer[] defineLayers();
 
     public abstract JMatrix forward(JMatrix input, boolean training);
     public abstract JMatrix backward(JMatrix input);
@@ -30,45 +30,75 @@ public abstract class FunctionalLayer extends ShapeAlteringLayer {
         return components;
     }
 
-    public void printForwardDebug() {
+    @Override
+    public JMatrix[] forwardDebugData() {
         int length = 0;
         for (Layer l : components) {
-            for (JMatrix matrix : l.forwardDebugData()) {
-                length++;
+            if (!(l instanceof FunctionalLayer)) {
+                length += l.forwardDebugData().length;
             }
         }
         JMatrix[] debugData = new JMatrix[length];
         int index = 0;
         for (Layer l : components) {
-            for (JMatrix matrix : l.forwardDebugData()) {
-                debugData[index++] = matrix;
+            if (!(l instanceof FunctionalLayer)) {
+                for (JMatrix matrix : l.forwardDebugData()) {
+                    debugData[index++] = matrix;
+                }
             }
         }
-
-        Callbacks.printStats(
-            getName() + " output",
-            debugData
-        );
+        return debugData;
+    }
+    
+    @Override
+    public JMatrix[] backwardDebugData() {
+        int length = 0;
+        for (Layer l : components) {
+            if (!(l instanceof FunctionalLayer)) {
+                length += l.backwardDebugData().length;
+            }
+        }
+        JMatrix[] debugData = new JMatrix[length];
+        int index = 0;
+        for (Layer l : components) {
+            if (!(l instanceof FunctionalLayer)) {
+                for (JMatrix matrix : l.backwardDebugData()) {
+                    debugData[index++] = matrix;
+                }
+            }
+        }
+        return debugData;
     }
 
-    public void printBackwardDebug() {
-        int length = 0;
+    @Override
+    public void printForwardDebug() {
         for (Layer l : components) {
-            for (JMatrix matrix : l.backwardDebugData()) {
-                length++;
+            if (l instanceof FunctionalLayer) {
+                l.printForwardDebug();
             }
         }
-        JMatrix[] debugData = new JMatrix[length];
-        int index = 0;
-        for (Layer l : components) {
-            for (JMatrix matrix : l.backwardDebugData()) {
-                debugData[index++] = matrix;
-            }
+        if (forwardDebugData() != null) {
+            Callbacks.printStats(
+            getName() + " output",
+            forwardDebugData()
+        );
         }
 
-        Callbacks.printStats(
+        
+    }
+
+    @Override
+    public void printBackwardDebug() {
+        for (Layer l : components) {
+            if (l instanceof FunctionalLayer) {
+                l.printBackwardDebug();
+            }
+        }
+        if (backwardDebugData() != null) {
+            Callbacks.printStats(
             getName() + " gradients",
-            debugData
+            backwardDebugData()
         );
+        }
     }
 }
