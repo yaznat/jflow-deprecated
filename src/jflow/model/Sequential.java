@@ -778,24 +778,35 @@ public class Sequential{
             finder = layers.get(layerIndex++);
         }
         TrainableLayer first = (TrainableLayer)finder;
-        // Run an empty JMatrix through the model
-        if (isFlat(first)) {
-            // Run a flat batch of 1 through the model
-            if (first instanceof Embedding) {
-                JMatrix empty = JMatrix.zeros(1, 1, 1, 1);
-                forward(empty, false);
+
+        // Run an empty tensor through the model
+        try {
+            if (isFlat(first)) {
+                // Run a flat batch of 1 through the model
+                if (first instanceof Embedding) {
+                    JMatrix empty = JMatrix.zeros(1, 1, 1, 1);
+                    forward(empty, false);
+                } else {
+                    // Dense
+                    JMatrix empty = JMatrix.zeros(1, first.getInputShape()[1], 1, 1);
+                    forward(empty, false);
+                }
             } else {
-                // Dense
-                JMatrix empty = JMatrix.zeros(1, first.getInputShape()[1], 1, 1);
+                // Run a 4D batch of 1 through the model
+                JMatrix empty = JMatrix.zeros(
+                    first.getInputShape()
+                );
                 forward(empty, false);
             }
-        } else {
-            // Run a 4D batch of 1 through the model
-            JMatrix empty = JMatrix.zeros(
-                first.getInputShape()
-            );
-            forward(empty, false);
+        } catch (Exception e) {
+            /*
+             * Do nothing -- this likely means the first layer is custom
+             * and requires an unusual input shape. 
+             * Output shapes for the model summary will most likely be inferred
+             * without needing a dummy pass.
+             */  
         }
+
         // Count the total number of layers that aren't FunctionalLayers
         int numLayers = layers.size();
         for (Layer l : layers) {
