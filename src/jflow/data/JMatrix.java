@@ -795,8 +795,8 @@ public class JMatrix {
      * @return A JMatrix of shape [batch, seqLen, 1, 1] where each entry contains the position index of the token.
      */
     public static JMatrix positionIDs(JMatrix tokenIDs) {
-        int batch = tokenIDs.shape()[0];
-        int seqLen = tokenIDs.shape()[1];
+        int batch = tokenIDs.shape(0);
+        int seqLen = tokenIDs.shape(1);
         JMatrix positions = JMatrix.zeros(batch, seqLen, 1, 1);
     
         for (int b = 0; b < batch; b++) {
@@ -913,7 +913,8 @@ public class JMatrix {
      */
     public JMatrix fill(double fillValue) {
         float valueF = (float)fillValue;
-        IntStream.range(0, matrix.length).parallel().forEach(i -> {
+        int size = size();
+        IntStream.range(0, size).parallel().forEach(i -> {
             matrix[i] = valueF;
         });
         return this;

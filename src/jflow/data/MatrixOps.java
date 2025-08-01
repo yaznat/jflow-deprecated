@@ -3,6 +3,11 @@ package jflow.data;
 import java.util.stream.IntStream;
 
 public class MatrixOps {
+    public static void fill(float[] array, int offset, int size, float value) {
+        IntStream.range(offset, offset + size).parallel().forEach(i -> {
+            array[i] = value;
+        });
+    }
     public static void transpose4DMatrixByDims(
         float[] input,
         int oldLength,
