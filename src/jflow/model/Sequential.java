@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -771,15 +772,15 @@ public class Sequential{
      * Print a model summary in the terminal.
      */
     public Sequential summary() {
-        // find the first Trainable Layer
+        // Find the first Trainable Layer
         int layerIndex = 0;
         Layer finder = layers.get(layerIndex++);
-        while (! (finder instanceof TrainableLayer)) {
+        while (!(finder instanceof TrainableLayer)) {
             finder = layers.get(layerIndex++);
         }
         TrainableLayer first = (TrainableLayer)finder;
 
-        // Run an empty tensor through the model
+        // Run a dummy batch to infer output shapes if not already set
         try {
             if (isFlat(first)) {
                 // Run a flat batch of 1 through the model
@@ -787,7 +788,6 @@ public class Sequential{
                     JMatrix empty = JMatrix.zeros(1, 1, 1, 1);
                     forward(empty, false);
                 } else {
-                    // Dense
                     JMatrix empty = JMatrix.zeros(1, first.getInputShape()[1], 1, 1);
                     forward(empty, false);
                 }
@@ -808,10 +808,10 @@ public class Sequential{
         }
 
         // Count the total number of layers that aren't FunctionalLayers
-        int numLayers = layers.size();
+        int numLayers = 0;
         for (Layer l : layers) {
-            if (l instanceof FunctionalLayer) {
-                numLayers--;
+            if (!(l instanceof FunctionalLayer)) {
+                numLayers++;
             }
         }
 
@@ -822,9 +822,9 @@ public class Sequential{
         }
 
         // Declare the size of each column
-        int spacesType = 40;
-        int spacesShape = 30;
-        int spacesParam = 20;
+        final int spacesType = 40;
+        final int spacesShape = 30;
+        final int spacesParam = 20;
 
         // Display the layer names and types
         String[][] layerTypes = new String[numLayers + 1][2];
@@ -877,116 +877,110 @@ public class Sequential{
             params[targetIndex++] = String.valueOf(layer.numTrainableParameters());
         }
 
-        String title = AnsiCodes.BOLD + AnsiCodes.WHITE + " Model Summary";
-        if (name != null) {
-            title += " (" + name + ")";
-        }
-        title += AnsiCodes.RESET + AnsiCodes.BLUE;
-        System.out.println("\n" + title);
-        System.out.print("╭");
-        for (int i = 0; i < spacesType; i++) {
-            System.out.print("─");
-        }
-        System.out.print("┬");
-        for (int i = 0; i < spacesShape; i++) {
-            System.out.print("─");
-        }
-        System.out.print("┬");
-        for (int i = 0; i < spacesParam; i++) {
-            System.out.print("─");
-        }
-        System.out.print("╮\033[0m\n");
+        String title = 
+            AnsiCodes.BOLD + AnsiCodes.WHITE + 
+            " Model Summary" + " (" + name() + ")"
+            + AnsiCodes.RESET;
+
+        // Print title and summary top shell
+        System.out.println(
+            "\n" + title + "\n" + AnsiCodes.BLUE + 
+            "╭" + "─".repeat(spacesType) + "┬" + 
+            "─".repeat(spacesShape) + "┬" + 
+            "─".repeat(spacesParam) + "╮" + 
+            AnsiCodes.RESET
+        
+        );
+
+        final String cellWall = AnsiCodes.BLUE + "│ " + AnsiCodes.RESET;
+        // Print the body of the summary
         for (int line = 0; line < layerTypes.length; line++) {
             int numSpaces = spacesType - (layerTypes[line][0].length() + 
                 layerTypes[line][1].length() + 4);
 
-            System.out.print("\033[94m│ \033[0m");
+            System.out.print(cellWall);
 
-            if (line == 0) { 
-                System.out.print("\033[1;38;2;230;140;0m" + 
-                    layerTypes[line][0] + "\033[0m \033[1;37m(" + layerTypes[line][1] + ")" + "\033[0m");
-            } else {
-                System.out.print("\033[38;2;255;165;0m" + 
-                    layerTypes[line][0] + "\033[0m \033[37m(" + layerTypes[line][1] + ")" + "\033[0m");
+            // Print a "Layer (type)" item
+            if (line == 0) {
+                System.out.print(AnsiCodes.BOLD);
             }
-            
-            for (int i = 0; i < numSpaces; i++) {
-                System.out.print(" ");
-            }
+            System.out.print(
+                AnsiCodes.ORANGE + layerTypes[line][0] + 
+                AnsiCodes.WHITE + " (" + layerTypes[line][1] 
+                + ")" + AnsiCodes.RESET + " ".repeat(numSpaces)
+            );
 
-            
-            System.out.print("\033[94m│ \033[0m");
+            System.out.print(cellWall);
+
+            // Print an "Output Shape" item
             if (line == 0) {
                 numSpaces = spacesShape - shapes[line].length() - 1;
-                System.out.print("\033[1;37m");
-                System.out.print(shapes[line]);
+                System.out.print(
+                    AnsiCodes.WHITE + AnsiCodes.BOLD + 
+                    shapes[line] + AnsiCodes.RESET
+                );
             } else {
                 numSpaces = spacesShape - shapes[line].length() - 7;
-                System.out.print("\033[38;2;0;153;153m(None\033[37m," + shapes[line] + "\033[0m");
+                System.out.print(
+                    AnsiCodes.TEAL + "(None" + AnsiCodes.WHITE 
+                    + "," + shapes[line] + AnsiCodes.RESET
+                );
             }
-            
-            for (int i = 0; i < numSpaces; i++) {
-                System.out.print(" ");
-            }
+            System.out.print(" ".repeat(numSpaces));
+            System.out.print(cellWall);
 
-            numSpaces = spacesParam - params[line].length() - 1;
-            System.out.print("\033[94m│ \033[0m");;
-            for (int i = 0; i < numSpaces; i++) {
-                System.out.print(" ");
-            }
+            // Print a "Param #" item, right-centered
             if (line == 0) {
-                System.out.print("\033[1;37m");
-            } else {
-                System.out.print("\033[37m");
+                System.out.print(AnsiCodes.BOLD);
             }
-            System.out.print(params[line]);
-            System.out.print("\033[94m│\033[0m\n");
+            numSpaces = spacesParam - params[line].length() - 1;
+            System.out.print(" ".repeat(numSpaces));
+            
+            System.out.print(AnsiCodes.WHITE + params[line]);
+            
+            System.out.println(cellWall + AnsiCodes.BLUE);
 
             if (line == layerTypes.length - 1) {
-                System.out.print("\033[94m╰");
+                System.out.print("╰");
             } else {
-                System.out.print("\033[94m├");
+                System.out.print("├");
             }
-            
-            for (int i = 0; i < spacesType; i++) {
-                System.out.print("─");
-            }
+            System.out.print("─".repeat(spacesType));
+
             if (line == layerTypes.length - 1) {
                 System.out.print("┴");
             } else {
                 System.out.print("┼");
             }
-            for (int i = 0; i < spacesShape; i++) {
-                System.out.print("─");
-            }
+            System.out.print("─".repeat(spacesShape));
+
             if (line == layerTypes.length - 1) {
                 System.out.print("┴");
             } else {
                 System.out.print("┼");
             }
+            System.out.print("─".repeat(spacesParam));
             
-            for (int i = 0; i < spacesParam; i++) {
-                System.out.print("─");
-            }
             if (line == layerTypes.length - 1) {
                 System.out.print("╯");
             }
             else {
                 System.out.print("┤");
             }
-            System.out.print("\n");
+            System.out.println();
         }
-        // Add commas to the number of parameters for readability
-        String parameters = String.valueOf(trainableParameters);
-        int numCommas = (parameters.length() - 1) / 3;
-            int length = parameters.length();
-            for (int j = 0; j < numCommas; j++) {
-                int index = 1 + j * 4 + ((length % 3 == 0) ? 2 : length % 3 - 1);
-                parameters = parameters.substring(0, index) + "," + parameters.substring(index);
-            }
-        System.out.println("\033[1;38;2;230;140;0mTotal params: \033[1;37m" + parameters);
-        System.out.println("\033[1;38;2;230;140;0mTrainable params: \033[1;37m" + parameters);
-        System.out.println("\033[1;38;2;230;140;0mNon-trainable params: \033[1;37m" + 0 + "\033[0m");
+        // Format the parameter count with commas for readability
+        String formatted = NumberFormat.getIntegerInstance().format(trainableParameters);
+
+        // Calculate parameter size in MB
+        double sizeInMB = trainableParameters / 250000.0;
+
+        System.out.println(
+            AnsiCodes.BOLD + AnsiCodes.ORANGE + 
+            "Total params: " + AnsiCodes.WHITE +
+            formatted + " (" + String.format("%.1f", sizeInMB) + " MB)"
+            + AnsiCodes.RESET
+        );
 
         return this;
     }
