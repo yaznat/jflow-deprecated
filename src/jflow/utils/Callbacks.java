@@ -24,7 +24,7 @@ public class Callbacks {
      * <li> L1 norm </li>
      * <li> L2 norm </li>
      * </ul>
-     * @param debugData An array of JMatrixes grouped semantically.
+     * @param debugData An array of JMatrixes.
      * @param debugTitle The title of this JMatrix group. Enter "" for no title.
      */
     public static void printStats(String debugTitle, JMatrix... debugData) {
@@ -37,17 +37,16 @@ public class Callbacks {
         topBracketWidth -= debugTitle.length();
         boolean oddWidth = topBracketWidth % 2 != 0;
         topBracketWidth /= 2;
-        System.out.print(AnsiCodes.BLUE + "╭");
-        for (int i = 0; i < topBracketWidth; i++) {
-            System.out.print("─");
-        }
+        System.out.print(AnsiCodes.BLUE + "╭" + "─".repeat(topBracketWidth));
         if (oddWidth) {
             System.out.print("─");
         }
-        System.out.print(AnsiCodes.BOLD + debugTitle + AnsiCodes.RESET + AnsiCodes.BLUE);
-        for (int i = 0; i < topBracketWidth; i++) {
-            System.out.print("─");
-        }
+        System.out.print(
+            AnsiCodes.BOLD + debugTitle + 
+            AnsiCodes.RESET + AnsiCodes.BLUE
+            + "─".repeat(topBracketWidth)
+        );
+
         System.out.println("╮");
 
         // Find maximum lengths for monospacing
@@ -86,12 +85,13 @@ public class Callbacks {
 
             System.out.println();
         }
-        System.out.print(AnsiCodes.BLUE + "╰");
-        for (int i = 0; i < shellWidth; i++) {
-            System.out.print("─");
-        }
+        System.out.print(
+            AnsiCodes.BLUE + "╰"
+            + "─".repeat(shellWidth)
+        );
         System.out.println("╯" + AnsiCodes.RESET);
     }
+
     /**
      * Prints a formatted header using ANSI styling, indicating that training has begun.
      * @param name The name of the model or setup that is undergoing training.

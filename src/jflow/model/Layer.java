@@ -22,6 +22,7 @@ public abstract class Layer {
     private int IDnum;
     private final boolean isShapeInfluencer;
     private boolean gradientStorageDisabled = false;
+    private boolean debugEnabled;
         
 
     public abstract JMatrix forward(JMatrix input, boolean training);
@@ -59,6 +60,16 @@ public abstract class Layer {
     }
     protected boolean isInternal() {
         return enclosingLayer != null;
+    }
+
+    protected void enableDebugForThisLayer() {
+        this.debugEnabled = true;
+    }
+    protected void disableDebugForThisLayer() {
+        this.debugEnabled = false;
+    }
+    protected boolean debugEnabled() {
+        return debugEnabled;
     }
 
     // Some layers will override this

@@ -495,11 +495,19 @@ public class Sequential{
     }
 
     /**
-     * When enabled, prints statistical data from each layer.
+     * When enabled, prints a detailed, ANSI-styled debug output 
+     * for each layer during calls to forward() and backward()
      * @param enabled               Set debug mode to on or off.
      */
     public Sequential setDebug(boolean enabled) {
         debugMode = enabled;
+        for (Layer l : layers) {
+            if (enabled) {
+                l.enableDebugForThisLayer();
+            } else {
+                l.disableDebugForThisLayer();
+            }
+        }
         return this;
     }
     

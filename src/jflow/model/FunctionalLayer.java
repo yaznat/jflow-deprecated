@@ -1,11 +1,18 @@
 package jflow.model;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
+
 import jflow.data.JMatrix;
 import jflow.layers.templates.ShapeAlteringLayer;
+import jflow.utils.AnsiCodes;
 import jflow.utils.Callbacks;
 
 public abstract class FunctionalLayer extends ShapeAlteringLayer {
     private Layer[] components;
+    private static final int DEBUG_SHELL_WIDTH = 54;
+
     public FunctionalLayer(String name) {
         super(name);
     }
@@ -31,74 +38,129 @@ public abstract class FunctionalLayer extends ShapeAlteringLayer {
     }
 
     @Override
-    public JMatrix[] forwardDebugData() {
-        int length = 0;
-        for (Layer l : components) {
-            if (!(l instanceof FunctionalLayer)) {
-                length += l.forwardDebugData().length;
-            }
-        }
-        JMatrix[] debugData = new JMatrix[length];
-        int index = 0;
-        for (Layer l : components) {
-            if (!(l instanceof FunctionalLayer)) {
-                for (JMatrix matrix : l.forwardDebugData()) {
-                    debugData[index++] = matrix;
-                }
-            }
-        }
-        return debugData;
-    }
-    
-    @Override
-    public JMatrix[] backwardDebugData() {
-        int length = 0;
-        for (Layer l : components) {
-            if (!(l instanceof FunctionalLayer)) {
-                length += l.backwardDebugData().length;
-            }
-        }
-        JMatrix[] debugData = new JMatrix[length];
-        int index = 0;
-        for (Layer l : components) {
-            if (!(l instanceof FunctionalLayer)) {
-                for (JMatrix matrix : l.backwardDebugData()) {
-                    debugData[index++] = matrix;
-                }
-            }
-        }
-        return debugData;
-    }
-
-    @Override
     public void printForwardDebug() {
-        for (Layer l : components) {
-            if (l instanceof FunctionalLayer) {
-                l.printForwardDebug();
-            }
-        }
-        if (forwardDebugData() != null) {
-            Callbacks.printStats(
-            getName() + " output",
-            forwardDebugData()
-        );
-        }
-
-        
+        printLayeredDebug(getName() + " forward output", true);
     }
 
     @Override
     public void printBackwardDebug() {
+        printLayeredDebug(getName() + " backward gradients", false);
+    }
+
+    // Recursively nest FunctionalLayer debug shells
+    private void printLayeredDebug(String debugTitle, boolean forward) {
+        PrintStream originalOut = System.out;
+        boolean createdNewStream = false;
+        
+        if (!(System.out instanceof IndentingPrintStream)) {
+            IndentingPrintStream stream = new IndentingPrintStream(originalOut);
+            System.setOut(stream);
+            createdNewStream = true;
+        }
+        
+        printDebugShellTop(debugTitle);
+        IndentingPrintStream.addIndent(AnsiCodes.YELLOW + "│ ");
+        
         for (Layer l : components) {
-            if (l instanceof FunctionalLayer) {
+            if (forward) {
+                l.printForwardDebug();
+            } else {
                 l.printBackwardDebug();
             }
         }
-        if (backwardDebugData() != null) {
-            Callbacks.printStats(
-            getName() + " gradients",
-            backwardDebugData()
-        );
+        
+        JMatrix[] debugData = (forward) ? forwardDebugData() : backwardDebugData();
+        if (debugData != null) {
+            Callbacks.printStats("", debugData);
+        }
+        
+        IndentingPrintStream.removeIndent(AnsiCodes.YELLOW + "│ ");
+        printDebugShellBottom();
+
+        
+        if (createdNewStream) {
+            System.setOut(originalOut);
         }
     }
+
+    private void printDebugShellTop(String debugTitle) {
+        int topBracketWidth = DEBUG_SHELL_WIDTH;
+
+        if (!debugTitle.equals("")) {
+            debugTitle = " " + debugTitle + " ";
+        }
+        topBracketWidth -= debugTitle.length();
+        boolean oddWidth = topBracketWidth % 2 != 0;
+        topBracketWidth /= 2;
+        System.out.print(AnsiCodes.YELLOW + "╭" + "─".repeat(topBracketWidth));
+        if (oddWidth) {
+            System.out.print("─");
+        }
+        System.out.print(
+            AnsiCodes.BOLD + debugTitle + 
+            AnsiCodes.RESET + AnsiCodes.YELLOW
+            + "─".repeat(topBracketWidth)
+        );
+        
+        System.out.println("╮");
+    }
+
+    private void printDebugShellBottom() {
+        System.out.print(
+            AnsiCodes.YELLOW + "╰"
+            + "─".repeat(DEBUG_SHELL_WIDTH)
+        );
+        System.out.println("╯" + AnsiCodes.RESET);
+    }
+
+    // Custom output stream to print lines with a specified indent
+    private static class IndentingPrintStream extends PrintStream {
+        private static final ThreadLocal<String> indent = ThreadLocal.withInitial(() -> "");
+        private boolean atLineStart = true;
+
+        public IndentingPrintStream(OutputStream out) {
+            super(out, true);
+        }
+
+        public static void addIndent(String extra) {
+            indent.set(indent.get() + extra);
+        }
+
+        public static void removeIndent(String extra) {
+            String current = indent.get();
+            if (current.endsWith(extra)) {
+                indent.set(current.substring(0, current.length() - extra.length()));
+            }
+        }
+
+        @Override
+        public void write(byte[] buf, int off, int len) {
+            String str = new String(buf, off, len);
+            String[] lines = str.split("\n", -1); // Keep empty lines
+            
+            for (int i = 0; i < lines.length; i++) {
+                try {
+                    // Only add indent at the start of a line
+                    if (atLineStart && !lines[i].isEmpty()) {
+                        out.write(indent.get().getBytes());
+                    }
+                    out.write(lines[i].getBytes());
+                    
+                    if (i < lines.length - 1) {
+                        out.write('\n');
+                        atLineStart = true; 
+                    } else {
+                        atLineStart = false;
+                    }
+                } catch (IOException e) {
+                    setError();
+                }
+            }
+            
+            if (str.endsWith("\n")) {
+                atLineStart = true;
+            }
+        }
+    }
+
 }
