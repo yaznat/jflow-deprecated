@@ -61,11 +61,16 @@ public abstract class FunctionalLayer extends ShapeAlteringLayer {
         printDebugShellTop(debugTitle);
         IndentingPrintStream.addIndent(AnsiCodes.YELLOW + "│ ");
         
-        for (Layer l : components) {
+        // Printout order is reversed between the forward pass and backward pass
+        for (
+            int index = forward ? 0 : components.length - 1;
+            forward ? index <= components.length - 1 : index >= 0;  
+            index += forward ? 1 : -1
+        ) {
             if (forward) {
-                l.printForwardDebug();
+                components[index].printForwardDebug();
             } else {
-                l.printBackwardDebug();
+                components[index].printBackwardDebug();
             }
         }
         

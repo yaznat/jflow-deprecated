@@ -87,7 +87,7 @@ public abstract class Layer {
 
     protected JMatrix trackOutput(JMatrix output, boolean training) {
         // Last layer must store output
-        if (training || getNextLayer() == null) {
+        if (training || debugEnabled || getNextLayer() == null) {
             this.output = output;
         } else {
             // Ensure memory is freed
@@ -97,7 +97,7 @@ public abstract class Layer {
     }
     
     protected JMatrix trackGradient(JMatrix gradient) {
-        if (gradientStorageDisabled) {
+        if (gradientStorageDisabled && !debugEnabled) {
             // Ensure memory is freed
             this.gradient = null;
         } else {
