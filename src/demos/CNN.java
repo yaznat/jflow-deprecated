@@ -106,8 +106,6 @@ public class CNN {
             // Pass a dummy tensor to specify input shape
             .summary(JMatrix.zeros(1, COLOR_CHANNELS, IMAGE_SIZE, IMAGE_SIZE));
 
-        System.exit(0);
-
     // Try out different optimizers
         // model.compile(SGD(0.01, 0.9, true));
         // model.compile(AdaGrad(0.01));
