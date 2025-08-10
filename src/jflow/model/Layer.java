@@ -7,6 +7,7 @@ import jflow.utils.Callbacks;
 public abstract class Layer {
     // Layer graph
     private LayerList layers;
+    private Layer firstLayer; // Cached for performance
 
     // Data
     private JMatrix output;
@@ -34,6 +35,7 @@ public abstract class Layer {
 
     protected void link(LayerList layers) {
         this.layers = layers;
+        this.firstLayer = layers.getFirst();
     }
 
     protected LayerList getLayerList() {
@@ -93,7 +95,7 @@ public abstract class Layer {
 
     protected JMatrix trackOutput(JMatrix output, boolean training) {
         this.outputShape = output.shape();
-        if (training || debugEnabled || getLayerList().getLast().equals(this)) { // Last layer should store output for convenience
+        if (training || debugEnabled || firstLayer.equals(this)) { // Last layer should store output for convenience
             this.output = output;
         } else {
             // Ensure memory is freed

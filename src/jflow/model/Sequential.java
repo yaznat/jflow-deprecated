@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 import jflow.data.*;
+import jflow.layers.Embedding;
 import jflow.layers.Sigmoid;
 import jflow.layers.templates.TrainableLayer;
 import jflow.utils.AnsiCodes;
@@ -36,8 +37,10 @@ public class Sequential{
     private int modelNum;
     private String name = null;
     private boolean debugMode;
+    private boolean built;
     private Optimizer optimizer;
     private HashMap<String, JMatrix[]> layerGradients = new HashMap<>();
+    private int[] inputShape;
 
     /**
      * Initializes an empty Sequential model.
@@ -93,6 +96,15 @@ public class Sequential{
      */
     public Sequential add(Layer layer) {
         layers.add(layer);
+        return this;
+    }
+
+    /**
+     * Set the input shape of this model.
+     * @param shape Either a 2D or 4D input shape, excluding the batch dimension.
+     */
+    public Sequential setInputShape(InputShape shape) {
+        inputShape = shape.getShape();
         return this;
     }
 
@@ -385,6 +397,43 @@ public class Sequential{
     }
 
     /**
+     * Force this model to build. Calling this method is not typically required. Build is automatically handled by calling:
+     * {@code model.summary(...)}, {@code model.forward(...)}, or {@code model.loadWeights(...)}.
+     */
+    public Sequential build() {
+        if (!built) {
+            if (inputShape != null) {
+                forward(JMatrix.zeros(inputShape), false);
+            } else {
+                int[] layerInputShape = layers.getFirst().getInputShape();
+                if (layerInputShape != null) {
+                    forward(JMatrix.zeros(layerInputShape), false);
+                } else {
+                    // Embedding can usually be built with (batchSize = 1, seqLen = 1)
+                    List<TrainableLayer> trainables = layers.getLayersOfType(TrainableLayer.class);
+                    if (trainables.getFirst() instanceof Embedding) {
+                        try {
+                            forward(JMatrix.zeros(1, 1, 1, 1), false);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            throw new IllegalStateException(
+                                "Unusual model architecture detected. " + 
+                                "Input shape must be provided to properly build the model. " +
+                                "Either pass jflow.model.Builder.InputShape as an argument in the Embedding constructor, "
+                                + "or call model.setInputShape(...)." + 
+                                "\nNote: if input shape is set and correct, the error may come from your FunctionalLayer code. " + 
+                                "See the stack trace above."
+                            );
+                        }
+                    }
+                }
+            }
+            built = true;
+        }
+        return this;
+    }
+
+    /**
      * Perform forward propagation.
      * @param input                Input data wrapped in a JMatrix.
      * @param training             Indicate whether for training or inference.
@@ -409,6 +458,8 @@ public class Sequential{
                 layer.printForwardDebug();
             }
         }
+
+        built = true; // If forward pass was successful
         
         return output;
     }
@@ -547,6 +598,7 @@ public class Sequential{
      * @param path               The location of the directory to load files from.
      */
     public void loadWeights(String path) {
+        build();
         List<TrainableLayer> trainableLayers = layers.getLayersOfType(TrainableLayer.class);
         // Load all trainable layer weights
         IntStream.range(0, trainableLayers.size())
@@ -599,19 +651,21 @@ public class Sequential{
      * Print a model summary in the terminal.
      */
     public Sequential summary() {
+        build();
         // Try to dynamically infer the input tensor
-        int[] inputShape = layers.getFirst().getInputShape();
-        if (inputShape == null) {
-            String firstLayerClassName = layers.getFirst().getClass().getSimpleName();
-            throw new IllegalStateException(
-                "First layer input shape must be set for dynamic summary. " + 
-                String.format(
-                    "Either pass InputShape(...) as an argument in the %s constructor or call Sequential.summary(inputTensor).",
-                    firstLayerClassName
-                )
+        if (inputShape != null) {
+            summary(JMatrix.zeros(inputShape));
+        } else {
+            int[] layerInputShape = layers.getFirst().getInputShape();
+            if (layerInputShape != null) {
+                summary(JMatrix.zeros(layerInputShape));
+            } else {
+                throw new IllegalStateException(
+                "Model input shape must be set for dynamic summary. " + 
+                "Call model.setInputShape(...) or call model.summary(JMatrix inputTensor) for a specified summary."
             );
+            }  
         }
-        summary(JMatrix.zeros(inputShape));
         return this;
     }
 

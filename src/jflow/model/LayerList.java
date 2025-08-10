@@ -41,6 +41,7 @@ public class LayerList {
             // Handle internal layers as children
             processFunctionalLayer(functional, node);
         }
+        layer.link(this);
     }
     
     protected List<Layer> getLevel(int level) {
@@ -131,7 +132,6 @@ public class LayerList {
     
     private LayerNode processLayer(Layer layer, LayerNode parent) {
         nameLayer(layer);
-        layer.link(this);
         
         LayerNode node = new LayerNode(layer);
         node.level = parent != null ? parent.level + 1 : 0;
@@ -148,7 +148,7 @@ public class LayerList {
     private void processFunctionalLayer(FunctionalLayer functional, LayerNode parentNode) {
         for (Layer layer : functional.getLayers()) {
             LayerNode childNode = processLayer(layer, parentNode);
-            
+            layer.link(this);
             if (layer instanceof FunctionalLayer internalFunctional) {
                 processFunctionalLayer(internalFunctional, childNode);
             }
