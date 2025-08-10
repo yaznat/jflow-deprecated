@@ -1,5 +1,7 @@
 package jflow.layers;
 
+import java.util.Arrays;
+
 import jflow.data.JMatrix;
 import jflow.layers.templates.ShapeAlteringLayer;
 
@@ -45,6 +47,12 @@ public class Reshape extends ShapeAlteringLayer{
      */
     public Reshape(String mode) {
         super("reshape");
+        if(!Arrays.stream(modeDict).anyMatch(item -> item.equals(mode))) {
+            throw new IllegalArgumentException(
+                "Unknown reshape mode: " + mode + 
+                "\nView the jflow.model.Builder.Reshape(...) JavaDoc for a list of supported modes."
+            ); 
+        }
         this.mode = mode;
     }
 
