@@ -46,11 +46,9 @@ public class Embedding extends ParametricLayer<Embedding> {
         }
         return this;
     }
-
-
+    
     @Override
-    public void build(int IDnum) {
-        super.build(IDnum);
+    protected void build(int[] inputShape) {
         if (useCustomInit()) {
             embeddings = initCustomWeight(vocabSize, embedDim, 1, 1);
         } else{
@@ -81,7 +79,7 @@ public class Embedding extends ParametricLayer<Embedding> {
     }
 
     @Override
-    public JMatrix forward(JMatrix tokenIDs, boolean training) {
+    public JMatrix trainableForwardPass(JMatrix tokenIDs, boolean training) {
         // Cache tokenIDs for backpropagation
         cacheInput(tokenIDs, training);
 
@@ -103,7 +101,7 @@ public class Embedding extends ParametricLayer<Embedding> {
     }
 
     @Override
-    public JMatrix backward(JMatrix dOutput) {
+    public JMatrix trainableBackwardPass(JMatrix dOutput) {
         int batch = dOutput.shape()[0];
         int seqLen = dOutput.shape()[1];
 
@@ -136,11 +134,5 @@ public class Embedding extends ParametricLayer<Embedding> {
     @Override
     public void updateParameters(JMatrix[] updates) {
         embeddings.subtractInPlace(updates[0]);
-    }
-
-    @Override
-    public int[] outputShape() {
-        // Variable batch_size/seq_len, fixed embed_dim
-        return new int[] {1, 1, embedDim}; 
     }
 }

@@ -98,13 +98,4 @@ public class Upsampling2D extends ShapeAlteringLayer{
         return trackGradient(gradient);
 
     }
-
-
-    @Override
-    public int[] outputShape() {
-        int[] shape = getPreviousLayer().outputShape().clone();
-        shape[2] *= scaleFactor;
-        shape[3] *= scaleFactor;
-        return shape;
-    }
 }

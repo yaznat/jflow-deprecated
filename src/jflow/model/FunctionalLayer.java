@@ -13,28 +13,24 @@ public abstract class FunctionalLayer extends ShapeAlteringLayer {
     private Layer[] components;
     private static final int DEBUG_SHELL_WIDTH = 54;
 
-    public FunctionalLayer(String name) {
-        super(name);
-    }
-
-    @Override
-    public void build(int IDnum) {
-        super.build(IDnum);
-        this.components = defineLayers();
-        for (Layer l : components) {
-            l.setEnclosingLayer(this);
-        }
+    public FunctionalLayer(String type) {
+        super(type);
     }
     
     protected abstract Layer[] defineLayers();
 
-    public abstract JMatrix forward(JMatrix input, boolean training);
-    public abstract JMatrix backward(JMatrix input);
-
-    public abstract int[] outputShape();
-
     public Layer[] getLayers() {
+        components = defineLayers();
         return components;
+    }
+
+    @Override
+    protected int numTrainableParameters() {
+        int paramCount = 0;
+        for (Layer l : components) {
+            paramCount += l.numTrainableParameters();
+        }
+        return paramCount;
     }
 
     @Override

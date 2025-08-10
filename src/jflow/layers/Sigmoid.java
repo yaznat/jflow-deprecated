@@ -37,7 +37,7 @@ public class Sigmoid extends ShapePreservingLayer{
         JMatrix dSigmoid = output.zerosLike();
         int size = output.size();
 
-        if (getNextLayer() == null) {
+        if (getLayerList().getLast().equals(this)) {
             /*
              * This is the output layer.
              * Use binary cross entropy: predicted - actual

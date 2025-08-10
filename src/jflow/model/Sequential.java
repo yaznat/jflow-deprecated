@@ -18,12 +18,11 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 import jflow.data.*;
-import jflow.layers.Dense;
-import jflow.layers.Embedding;
 import jflow.layers.Sigmoid;
 import jflow.layers.templates.TrainableLayer;
 import jflow.utils.AnsiCodes;
 import jflow.utils.Callbacks;
+import jflow.utils.LayerManifest;
 import jflow.utils.Metrics;
 import jflow.utils.Metric;
 
@@ -31,16 +30,14 @@ import jflow.utils.Metric;
 
 // The sequential object represents a model
 public class Sequential{
-    private ArrayList<jflow.model.Layer> layers = new ArrayList<>();
+    private LayerList layers = new LayerList();
     private int numClasses = -1;
     private static int sequentialCount;
     private int modelNum;
     private String name = null;
     private boolean debugMode;
     private Optimizer optimizer;
-    private int[] inputShape;
     private HashMap<String, JMatrix[]> layerGradients = new HashMap<>();
-    private HashMap<String, Integer> layerCounts = new HashMap<>();
 
     /**
      * Initializes an empty Sequential model.
@@ -95,145 +92,7 @@ public class Sequential{
      * @param layer A JFlow Layer.
      */
     public Sequential add(Layer layer) {
-        String name = layer.getName();
-        // Update layer count in the hashmap
-        layerCounts.put(name, layerCounts.getOrDefault(name, 0) + 1);
-
-        if (!layer.isInternal()) {
-            // Link non-internal layers
-            if (layers.isEmpty()) {
-                // First layer in the model
-                if (inputShape != null) {
-                    layer.setInputShape(inputShape);
-                }
-            } else {
-                // Find appropriate previous layer for connection
-                // If the last layer was a functional layer, connect to it directly
-                if (layers.getLast() instanceof FunctionalLayer) {
-                    layer.setPreviousLayer(layers.getLast());
-                    layers.getLast().setNextLayer(layer);
-                } else {
-                    // Otherwise find the last non-internal layer
-                    Layer previousNonInternalLayer = null;
-                    for (int i = layers.size() - 1; i >= 0; i--) {
-                        if (!layers.get(i).isInternal()) {
-                            previousNonInternalLayer = layers.get(i);
-                            break;
-                        }
-                    }
-                    if (previousNonInternalLayer != null) {
-                        layer.setPreviousLayer(previousNonInternalLayer);
-                        previousNonInternalLayer.setNextLayer(layer);
-                    }
-                }
-            }
-        }
-        
-        // Add the layer to layers
         layers.add(layer);
-
-        // Build the layer after setting connections
-        layer.build(layerCounts.get(name));
-        
-        if (layer instanceof FunctionalLayer) {
-            processFunctionalLayer((FunctionalLayer) layer);
-        }
-        return this;
-    }
-
-    private void processFunctionalLayer(FunctionalLayer functionalLayer) {
-        Layer[] internalLayers = functionalLayer.getLayers();
-        
-        if (internalLayers != null && internalLayers.length > 0) {
-            // Find the appropriate previous layer to connect to the first internal layer
-            Layer previousLayerForConnection = findPreviousLayerForInternalLayer(functionalLayer);
-            
-            if (previousLayerForConnection != null) {
-                internalLayers[0].setPreviousLayer(previousLayerForConnection);
-                previousLayerForConnection.setNextLayer(internalLayers[0]);
-            }
-            
-            // Connect internal layers to each other
-            for (int i = 1; i < internalLayers.length; i++) {
-                internalLayers[i].setPreviousLayer(internalLayers[i - 1]);
-                internalLayers[i - 1].setNextLayer(internalLayers[i]);
-            }
-            
-            // Process each internal layer
-            for (Layer internalLayer : internalLayers) {
-                String internalName = internalLayer.getName();
-                layerCounts.put(internalName, layerCounts.getOrDefault(internalName, 0) + 1);
-                
-                // Set the enclosing layer reference
-                internalLayer.setEnclosingLayer(functionalLayer);
-                
-                internalLayer.build(layerCounts.get(internalName));
-                layers.add(internalLayer);
-                
-                // Recursively process nested functional layers
-                if (internalLayer instanceof FunctionalLayer) {
-                    processFunctionalLayer((FunctionalLayer) internalLayer);
-                }
-            }
-        }
-    }
-    
-    private Layer findPreviousLayerForInternalLayer(FunctionalLayer functionalLayer) {
-        // Find functional layer's index
-        int functionalLayerIndex = -1;
-        for (int i = 0; i < layers.size(); i++) {
-            if (layers.get(i) == functionalLayer) {
-                functionalLayerIndex = i;
-                break;
-            }
-        }
-        
-        if (functionalLayerIndex < 0) {
-            return null; // Functional layer not found in layers list
-        }
-        
-        // Get the enclosing layer of the current functional layer
-        Layer currentEnclosingLayer = functionalLayer.getEnclosingLayer();
-        
-        // Look backwards for a layer at the same nesting level
-        for (int i = functionalLayerIndex - 1; i >= 0; i--) {
-            Layer candidate = layers.get(i);
-            
-            // Check if this candidate is at the same nesting level
-            if (isSameNestingLevel(candidate, functionalLayer, currentEnclosingLayer)) {
-                return candidate;
-            }
-        }
-        
-        return null;
-    }
-    
-    /**
-     * Determines if two layers are at the same nesting level within the functional layer hierarchy
-     */
-    private boolean isSameNestingLevel(Layer candidate, Layer currentFunctionalLayer, Layer currentEnclosingLayer) {
-        Layer candidateEnclosingLayer = candidate.getEnclosingLayer();
-        
-        // If both have the same enclosing layer, they're at the same level
-        if (candidateEnclosingLayer == currentEnclosingLayer) {
-            return true;
-        }
-        
-        // Handle the case where one or both enclosing layers are null
-        if (candidateEnclosingLayer == null && currentEnclosingLayer == null) {
-            return true;
-        }
-        
-        return false;
-    }
-
-    /**
-     * Set the input shape of the model. <p>
-     * Alternative option to declaring input shape in the first layer.
-     * @param shape                         An InputShape object.
-     */
-    public Sequential setInputShape(InputShape shape) {
-        this.inputShape = shape.getShape();
         return this;
     }
 
@@ -249,17 +108,16 @@ public class Sequential{
     // Initialize each trainable layer in the optimizer
     private void setOptimizer(Optimizer optimizer) {
         this.optimizer = optimizer;
-        for (jflow.model.Layer l : layers) {
-            if (l instanceof TrainableLayer) {
-                TrainableLayer trainable = (TrainableLayer)l;
-                optimizer.initializeLayer(trainable);
-                /*
-                 * Store references to internal gradients.
-                 * References always remain valid.
-                 */ 
-                layerGradients.put(trainable.getName(), 
-                    trainable.getParameterGradients());
-            }
+        for (TrainableLayer trainable : layers.getLayersOfType(TrainableLayer.class)) {
+            optimizer.initializeLayer(trainable);
+            /*
+             * Store references to internal gradients.
+             * References always remain valid.
+             */ 
+            layerGradients.put(
+                trainable.getName(), 
+                trainable.getParameterGradients()
+            );
         }
     }
 
@@ -301,7 +159,7 @@ public class Sequential{
      * very large models, it may be necessary to disable gradient storage for the sake of memory.
      */
     public Sequential disableGradientStorage() {
-        for (Layer l : layers) {
+        for (Layer l : layers.getFlat()) {
             l.disableGradientStorage();
         }
         return this;
@@ -502,7 +360,7 @@ public class Sequential{
      */
     public Sequential setDebug(boolean enabled) {
         debugMode = enabled;
-        for (Layer l : layers) {
+        for (Layer l : layers.getFlat()) {
             if (enabled) {
                 l.enableDebugForThisLayer();
             } else {
@@ -543,16 +401,15 @@ public class Sequential{
 
         }
         JMatrix output = input;
-        for (int i = 0; i < layers.size(); i++) {
-            if (!layers.get(i).isInternal()) {
-                output = layers.get(i).forward(output, training);
+        // Only call the outermost layers externally
+        for (Layer layer : layers.getLevel(0)) {
+            output = layer.forward(output, training);
 
-                if (debugMode && training) {
-                    layers.get(i).printForwardDebug();
-                }
+            if (debugMode) {
+                layer.printForwardDebug();
             }
-            
         }
+        
         return output;
     }
 
@@ -560,7 +417,7 @@ public class Sequential{
      * Perform backward propagation.
      * @param gradient               Gradient wrapped in a JMatrix.
      * @param learningRate         The desired learning rate for updating parameters.
-     * @return                     Returns the gradient, dX, of the first layer of the model.
+     * @return                     Returns the gradient, dInput, of the first layer of the model.
      */
     public JMatrix backward(JMatrix gradient) {
         if (debugMode) {
@@ -572,17 +429,17 @@ public class Sequential{
             Callbacks.printStats("", gradient.label("gradient"));
         }
 
-        for (int i = layers.size() - 1; i >= 0; i--) {
-            if (!layers.get(i).isInternal()) {
-                gradient = layers.get(i).backward(gradient);
+        // Only call the outermost layers externally
+        JMatrix dInput = gradient;
+        for (Layer layer : layers.getLevel(0).reversed()) {
+            dInput = layer.backward(dInput);
 
-                if (debugMode) {
-                    layers.get(i).printBackwardDebug();
-                }
+            if (debugMode) {
+                layer.printBackwardDebug();
             }
-            
         }
-        return gradient;
+
+        return dInput;
     }
 
     // Calculate loss per batch
@@ -613,31 +470,6 @@ public class Sequential{
         return totalLoss / batchSize;
     }
 
-
-    /**
-     * Get the forward output of a layer in the model.
-     * @param layerIndex               The index of the desired layer.
-     */
-    public JMatrix getLayerOutput(int layerIndex) {
-        return layers.get(layerIndex).getOutput();
-    }
-
-    /**
-     * Get the forward output of the last layer in the model.
-     */
-    public JMatrix getLastLayerOutput() {
-        return layers.getLast().getOutput();
-    }
-
-    /**
-     * Get the gradient, dX, of a layer in the model.
-     * @param layerIndex               The index of the desired layer.
-     */
-    public JMatrix getLayerGradient(int layerIndex) {
-        return layers.get(0).getGradient();
-    }
-
-
     /**
      * Save weights to binary files in a directory.
      * @param path               The name of the directory to store files in.
@@ -646,17 +478,17 @@ public class Sequential{
         internalSaveWeights(path, true);
     }
     public void internalSaveWeights(String path, boolean printReport) {
+        List<TrainableLayer> trainableLayers = layers.getLayersOfType(TrainableLayer.class);
         // Save trainable layer weights
-        IntStream.range(0, layers.size())
+        IntStream.range(0, trainableLayers.size())
             .parallel()
             .forEach(i -> {
-                jflow.model.Layer l = layers.get(i);
-                if (l instanceof TrainableLayer trainable) {
-                    for (JMatrix weight : trainable.getParameters()) {
-                        String filePath = path + "/" + trainable.getName() + "_" + weight.label() + ".bin";
-                        saveWeightToBinary(filePath, weight);
-                    }
+                TrainableLayer trainable = trainableLayers.get(i);
+                for (JMatrix weight : trainable.getParameters()) {
+                    String filePath = path + "/" + trainable.getName() + "_" + weight.label() + ".bin";
+                    saveWeightToBinary(filePath, weight);
                 }
+                
             });
     
         // Save optimizer time steps
@@ -715,17 +547,17 @@ public class Sequential{
      * @param path               The location of the directory to load files from.
      */
     public void loadWeights(String path) {
+        List<TrainableLayer> trainableLayers = layers.getLayersOfType(TrainableLayer.class);
         // Load all trainable layer weights
-        IntStream.range(0, layers.size())
+        IntStream.range(0, trainableLayers.size())
             .parallel()
             .forEach(i -> {
-                jflow.model.Layer l = layers.get(i);
-                if (l instanceof TrainableLayer trainable) {
-                    JMatrix[] weights = trainable.getParameters();
-                    for (JMatrix weight : weights) {
-                        String filePath = path + "/" + trainable.getName() + "_" + weight.label() + ".bin";
-                        loadWeightFromBinary(filePath, weight);
-                    }
+                TrainableLayer trainable = trainableLayers.get(i);
+              
+                JMatrix[] weights = trainable.getParameters();
+                for (JMatrix weight : weights) {
+                    String filePath = path + "/" + trainable.getName() + "_" + weight.label() + ".bin";
+                    loadWeightFromBinary(filePath, weight);
                 }
             });
 
@@ -763,80 +595,91 @@ public class Sequential{
         }
     }
 
-    
-    private boolean isFlat(Layer layer) {
-        return layer instanceof Dense || layer instanceof Embedding;
-    }
-
     /**
      * Print a model summary in the terminal.
      */
     public Sequential summary() {
-        // Find the first Trainable Layer
-        int layerIndex = 0;
-        Layer finder = layers.get(layerIndex++);
-        while (!(finder instanceof TrainableLayer)) {
-            finder = layers.get(layerIndex++);
+        // Try to dynamically infer the input tensor
+        int[] inputShape = layers.getFirst().getInputShape();
+        if (inputShape == null) {
+            String firstLayerClassName = layers.getFirst().getClass().getSimpleName();
+            throw new IllegalStateException(
+                "First layer input shape must be set for dynamic summary. " + 
+                String.format(
+                    "Either pass InputShape(...) as an argument in the %s constructor or call Sequential.summary(inputTensor).",
+                    firstLayerClassName
+                )
+            );
         }
-        TrainableLayer first = (TrainableLayer)finder;
+        summary(JMatrix.zeros(inputShape));
+        return this;
+    }
 
-        // Run a dummy batch to infer output shapes if not already set
-        try {
-            if (isFlat(first)) {
-                // Run a flat batch of 1 through the model
-                if (first instanceof Embedding) {
-                    JMatrix empty = JMatrix.zeros(1, 1, 1, 1);
-                    forward(empty, false);
-                } else {
-                    JMatrix empty = JMatrix.zeros(1, first.getInputShape()[1], 1, 1);
-                    forward(empty, false);
-                }
-            } else {
-                // Run a 4D batch of 1 through the model
-                JMatrix empty = JMatrix.zeros(
-                    first.getInputShape()
-                );
-                forward(empty, false);
-            }
-        } catch (Exception e) {
-            /*
-             * Do nothing -- this likely means the first layer is custom
-             * and requires an unusual input shape. 
-             * Output shapes for the model summary will most likely be inferred
-             * without needing a dummy pass.
-             */  
+    private String formatLayerColor(String simpleClassName) {
+        if (LayerManifest.isSupported(simpleClassName)) {
+            return AnsiCodes.TEAL;
         }
+        switch(simpleClassName) {
+            case "type":
+                return AnsiCodes.BOLD + AnsiCodes.TEAL;
+            case "InputLayer":
+                return AnsiCodes.ITALIC + AnsiCodes.PURPLE;
+            default:
+                return AnsiCodes.GRAY; // FunctionalLayers
+        }
+
+    }
+
+    /**
+     * Print a model summary in the terminal.
+     * @param inputTensor Specify an input tensor to visualize how it passes through the model.
+     */
+    public Sequential summary(JMatrix inputTensor) {
+        // Run a dummy pass to build output shapes
+        forward(inputTensor, true);
+
+        // Only include the outermost level in the summary
+        List<Layer> summaryLayers = layers.getLevel(0);
 
         // Count the total number of layers that aren't FunctionalLayers
-        int numLayers = 0;
-        for (Layer l : layers) {
-            if (!(l instanceof FunctionalLayer)) {
-                numLayers++;
-            }
-        }
+        int numLayers = summaryLayers.size();
 
         // Sum trainable paramters
         int trainableParameters = 0;
-        for (Layer l : layers) {
+        for (Layer l : summaryLayers) {
             trainableParameters += l.numTrainableParameters();
         }
 
         // Declare the size of each column
-        final int spacesType = 40;
-        final int spacesShape = 30;
-        final int spacesParam = 20;
+        final int minSpacesType = 30;
+        final int minSpacesShape = 15;
+        final int minSpacesParam = 15;
+
+        int spacesType = minSpacesType;
+        int spacesShape = minSpacesShape;
+        int spacesParam = minSpacesParam;
+
+        int requiredGap = 5;
+
+        for (Layer l : summaryLayers) {
+            int typeLength = l.getName().length() + l.getType().length() + 3;
+            int shapeLength = l.getOutput().simpleShapeAsString().length();
+            int paramLength = String.valueOf(l.numTrainableParameters()).length();
+
+            spacesType = Math.max(spacesType, typeLength + requiredGap);
+            spacesShape = Math.max(spacesShape, shapeLength + requiredGap);
+            spacesParam = Math.max(spacesParam, paramLength + requiredGap);
+        }
 
         // Display the layer names and types
-        String[][] layerTypes = new String[numLayers + 1][2];
+        String[][] layerTypes = new String[numLayers + 2][2];
         layerTypes[0][0] = "Layer";
         layerTypes[0][1] = "type";
+        layerTypes[1][0] = "input";
+        layerTypes[1][1] = "InputLayer";
 
-        int targetIndex = 1; // Start after header
-        for (Layer layer : layers) {
-            if (layer instanceof FunctionalLayer) {
-                continue; // Skip this layer
-            }
-
+        int targetIndex = 2; // Start after header
+        for (Layer layer : summaryLayers) {
             String type = layer.getClass().getSimpleName();
             String name = layer.getName();
             layerTypes[targetIndex][0] = name;
@@ -844,37 +687,26 @@ public class Sequential{
             targetIndex++;
         }
 
-        String[] shapes = new String[numLayers + 1];
+        String[] shapes = new String[numLayers + 2];
         shapes[0] = "Output Shape";
+        shapes[1] = inputTensor.simpleShapeAsString();
 
-        targetIndex = 1; // Start after header
-        for (Layer layer : layers) {
-            if (layer instanceof FunctionalLayer) {
-                continue; // Skip this layer
-            }
-
-            int[] outputShape = layer.outputShape();
-            String shapeAsString = "";
-
-            for (int j = 1; j < outputShape.length; j++) {
-                shapeAsString += outputShape[j];
-                if (j != outputShape.length - 1) {
-                    shapeAsString += ",";
-                }
-            }
-
-            shapeAsString += ")";
-            shapes[targetIndex++] = shapeAsString;
+        targetIndex = 2; // Start after header
+        for (Layer layer : summaryLayers) {
+            shapes[targetIndex++] = layer.getOutput().simpleShapeAsString();
         }
-        String[] params = new String[numLayers + 1];
+        String[] params = new String[numLayers + 2];
         params[0] = "Param #";
+        params[1] = "--";
         
-        targetIndex = 1; // Start after header
-        for (Layer layer : layers) {
-            if (layer instanceof FunctionalLayer) {
-                continue; // Skip this layer
+        targetIndex = 2; // Start after header
+        for (Layer layer : summaryLayers) {
+            String paramCountAsString = String.valueOf(layer.numTrainableParameters());
+            if (paramCountAsString.length() > 6) {
+                params[targetIndex++] = NumberFormat.getIntegerInstance().format(layer.numTrainableParameters());
+            } else {
+                params[targetIndex++] = paramCountAsString;
             }
-            params[targetIndex++] = String.valueOf(layer.numTrainableParameters());
         }
 
         String title = 
@@ -901,11 +733,8 @@ public class Sequential{
             System.out.print(cellWall);
 
             // Print a "Layer (type)" item
-            if (line == 0) {
-                System.out.print(AnsiCodes.BOLD);
-            }
             System.out.print(
-                AnsiCodes.ORANGE + layerTypes[line][0] + 
+                formatLayerColor(layerTypes[line][1]) + layerTypes[line][0] + 
                 AnsiCodes.WHITE + " (" + layerTypes[line][1] 
                 + ")" + AnsiCodes.RESET + " ".repeat(numSpaces)
             );
@@ -913,18 +742,21 @@ public class Sequential{
             System.out.print(cellWall);
 
             // Print an "Output Shape" item
+            numSpaces = spacesShape - shapes[line].length() - 1;
             if (line == 0) {
-                numSpaces = spacesShape - shapes[line].length() - 1;
-                System.out.print(
-                    AnsiCodes.WHITE + AnsiCodes.BOLD + 
-                    shapes[line] + AnsiCodes.RESET
-                );
+                System.out.print(AnsiCodes.BOLD + AnsiCodes.WHITE + shapes[0]);
             } else {
-                numSpaces = spacesShape - shapes[line].length() - 7;
                 System.out.print(
-                    AnsiCodes.TEAL + "(None" + AnsiCodes.WHITE 
-                    + "," + shapes[line] + AnsiCodes.RESET
+                    AnsiCodes.WHITE + "("
                 );
+                String[] dims = shapes[line].replace("(", "").replace(")", "").split(",");
+                for (int i = 0; i < dims.length; i++) {
+                    System.out.print(AnsiCodes.DARK_ORANGE + dims[i]);
+                    if (i == 0 || !(i == dims.length - 1)) {
+                        System.out.print(AnsiCodes.WHITE + ",");
+                    }
+                }
+                System.out.print(AnsiCodes.WHITE + ")");
             }
             System.out.print(" ".repeat(numSpaces));
             System.out.print(cellWall);
@@ -976,7 +808,7 @@ public class Sequential{
         double sizeInMB = trainableParameters / 250000.0;
 
         System.out.println(
-            AnsiCodes.BOLD + AnsiCodes.ORANGE + 
+            AnsiCodes.BOLD + AnsiCodes.DARK_ORANGE + 
             "Total params: " + AnsiCodes.WHITE +
             formatted + " (" + String.format("%.1f", sizeInMB) + " MB)"
             + AnsiCodes.RESET

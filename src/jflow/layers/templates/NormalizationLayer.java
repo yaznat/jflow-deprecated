@@ -93,12 +93,11 @@ public abstract class NormalizationLayer<T extends NormalizationLayer<T>> extend
     /** 
      * Declare the shape of gamma and beta.
      */
-    protected abstract int[] parameterShape();
+    protected abstract int[] parameterShape(int[] inputShape);
 
     @Override
-    public void build(int IDnum) {
-        super.build(IDnum);
-        int[] initShape = parameterShape();
+    public void build(int[] inputShape) {
+        int[] initShape = parameterShape(inputShape);
 
         // Initialize parameters
         gamma = JMatrix
@@ -149,10 +148,4 @@ public abstract class NormalizationLayer<T extends NormalizationLayer<T>> extend
         gamma.subtractInPlace(parameterUpdates[0]);
         beta.subtractInPlace(parameterUpdates[1]);
     }
-
-    @Override
-    public int[] outputShape() {
-        return getPreviousLayer().outputShape();
-    }
-    
 }

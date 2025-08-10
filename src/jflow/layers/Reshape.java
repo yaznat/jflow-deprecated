@@ -13,6 +13,13 @@ public class Reshape extends ShapeAlteringLayer{
     private int oldWidth;
     private int oldLength;
 
+    private String mode;
+
+    private static final String[] modeDict = new String[] {
+        "merge_batch_seq",
+        "split_batch_seq",
+    };
+
 
     /**
      * The Reshape layer.
@@ -29,6 +36,18 @@ public class Reshape extends ShapeAlteringLayer{
         this.newWidth = width;
     }
 
+    /**
+     * The Reshape layer.
+     * 
+     * <p><b>Do not instantiate directly.</b> Use the static builder method:
+     * {@code import static jflow.model.builder.*;}
+     * and call {@code Reshape(...)} instead of {@code new Reshape(...)}.
+     */
+    public Reshape(String mode) {
+        super("reshape");
+        this.mode = mode;
+    }
+
     @Override
     public JMatrix forward(JMatrix input, boolean training) {
         this.oldLength = input.length();
@@ -36,20 +55,24 @@ public class Reshape extends ShapeAlteringLayer{
         this.oldHeight = input.height();
         this.oldWidth = input.width();
 
-        int newLength = (this.newLength == -1) ? input.length() : this.newLength;
+        switch (mode) {
+            case "merge_batch_seq":
+                return trackOutput(input.reshape(oldLength * oldChannels, oldHeight, 1, 1), training);
+            case "split_batch_seq":
+                // Assume seqLen from embedding layer
+                int seqLen = getLayerList().getFirst().outputShape()[1];
+                return trackOutput(input.reshape(oldLength / seqLen, seqLen, oldChannels, oldHeight), training); 
+            default:
+                int newLength = (this.newLength == -1) ? input.length() : this.newLength;
 
-        return trackOutput(input.reshape(newLength, newChannels, newHeight, newWidth), training);
+                return trackOutput(input.reshape(newLength, newChannels, newHeight, newWidth), training);
+        }
+
+        
     }
-
-    
 
     @Override
     public JMatrix backward(JMatrix input) {
         return trackGradient(input.reshape(oldLength, oldChannels, oldHeight, oldWidth));
-    }
-
-    @Override
-    public int[] outputShape() {
-        return new int[] {1, newChannels, newHeight, newWidth};
     }
 }

@@ -37,15 +37,15 @@ public class BatchNorm extends NormalizationLayer<BatchNorm> {
     }
 
     @Override
-    protected int[] parameterShape() {
-        this.featureSize = getPreviousLayer().outputShape()[1];
+    protected int[] parameterShape(int[] inputShape) {
+        this.featureSize = inputShape[1];
 
         return new int[] {1, featureSize, 1, 1};
     }
 
     @Override
-    public void build(int IDnum) {
-        super.build(IDnum); // calls parameterShape()
+    public void build(int[] inputShape) {
+        super.build(inputShape); // calls parameterShape()
         
         // Initialize running mean as 0.0
         this.runningMean = JMatrix.zeros(1, featureSize, 1, 1).label("runningMean");
@@ -58,7 +58,7 @@ public class BatchNorm extends NormalizationLayer<BatchNorm> {
 
     }
 
-    public JMatrix forward(JMatrix input, boolean training) {
+    public JMatrix trainableForwardPass(JMatrix input, boolean training) {
         JMatrix gamma = getGamma();
         JMatrix beta = getBeta();
 
@@ -66,9 +66,6 @@ public class BatchNorm extends NormalizationLayer<BatchNorm> {
             this.input = input;
         }
         
-        if (getPreviousShapeInfluencer() instanceof Dense) {
-            input = input.T();
-        }
         // Ensure dx and dxHat have the right dimensions
         if (dx == null || dx.length() != input.length() || dx.channels() != input.channels()) {
             dx = input.zerosLike();
@@ -246,7 +243,7 @@ public class BatchNorm extends NormalizationLayer<BatchNorm> {
 
     }
 
-    public JMatrix backward(JMatrix dOut) {
+    public JMatrix trainableBackwardPass(JMatrix dOut) {
         JMatrix gamma = getGamma();
         JMatrix dGamma = getDGamma();
         JMatrix dBeta = getDBeta();

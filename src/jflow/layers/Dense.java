@@ -59,43 +59,9 @@ public class Dense extends ParametricLayer<Dense> {
     }  
 
     @Override
-    protected void build(int IDnum) {
-        super.build(IDnum);
-        int inputSize;
-        int[] inputShape = getInputShape();
+    protected void build(int[] inputShape) {
+        int inputSize = inputShape[1]; // Feature dimension
 
-        if (inputShape == null) {
-            throw new IllegalStateException(
-                    "In " + this.getClass().getSimpleName() + 
-                    ": Cannot build the first layer without an input shape."
-                );
-        } else {
-            inputSize = inputShape[1]; // Feature dimension
-        }
-
-        initParams(inputSize);
-
-        if (tiedWeights == null) {
-            int numTrainableParameters = 0;
-            numTrainableParameters += inputSize * outputSize;
-            if (useBias) {
-                numTrainableParameters += outputSize;
-            }
-            setNumTrainableParameters(numTrainableParameters);
-        } else {
-            try {
-                weights.setMatrix(tiedWeights);
-            } catch (IllegalArgumentException e) {
-                throw new IllegalArgumentException(
-                    "Invalid matrix size for weight tying. Expected: "
-                    + weights.size() + " Got: " + tiedWeights.length
-                );
-            }
-            tiedWeights = null;
-        }
-    }
-
-    private void initParams(int inputSize) {
         // Check for user-specified initialization
         if (useCustomInit()) {
             weights = initCustomWeight(inputSize, outputSize, 1, 1);
@@ -130,10 +96,29 @@ public class Dense extends ParametricLayer<Dense> {
             )
             .label("dBiases");
         }   
+
+        if (tiedWeights == null) {
+            int numTrainableParameters = 0;
+            numTrainableParameters += inputSize * outputSize;
+            if (useBias) {
+                numTrainableParameters += outputSize;
+            }
+            setNumTrainableParameters(numTrainableParameters);
+        } else {
+            try {
+                weights.setMatrix(tiedWeights);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException(
+                    "Invalid matrix size for weight tying. Expected: "
+                    + weights.size() + " Got: " + tiedWeights.length
+                );
+            }
+            tiedWeights = null;
+        }
     }
 
     @Override
-    public JMatrix forward(JMatrix input, boolean training) {
+    public JMatrix trainableForwardPass(JMatrix input, boolean training) {
         // Cache the input for backpropagation
         cacheInput(input, training);
 
@@ -149,7 +134,7 @@ public class Dense extends ParametricLayer<Dense> {
     }
 
     @Override
-    public JMatrix backward(JMatrix gradient) {
+    public JMatrix trainableBackwardPass(JMatrix gradient) {
         // Calculate dWeights and dBiases
         JMatrix weightGrad = getLastInput().T().matmul(gradient, scaleDuringMatmul);
         dWeights.addInPlace(weightGrad); // Accumulate updates
@@ -225,11 +210,5 @@ public class Dense extends ParametricLayer<Dense> {
         if (useBias) {
             biases.subtractInPlace(parameterUpdates[1]);
         }
-    }
-
-    @Override
-    public int[] outputShape() {
-        int[] outputShape = new int[] {1, outputSize};
-        return outputShape;
     }
 }

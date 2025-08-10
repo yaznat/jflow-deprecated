@@ -65,17 +65,8 @@ public class Conv2D extends ParametricLayer<Conv2D> {
     }
 
     @Override
-    protected void build(int IDnum) {
-        super.build(IDnum);
-        int[] shape = getInputShape();
-        if (shape == null) {
-            throw new IllegalStateException(
-                    "In " + this.getClass().getSimpleName() + 
-                    ": Cannot build the first layer without an input shape."
-                );
-        } else {
-            this.numChannels = shape[1];
-        }
+    protected void build(int[] inputShape) {
+        numChannels = inputShape[1];
         setNumTrainableParameters(numFilters * numChannels * filterSize * filterSize + numFilters);
 
         // He initialization
@@ -100,7 +91,7 @@ public class Conv2D extends ParametricLayer<Conv2D> {
     }
 
     @Override
-    public JMatrix forward(JMatrix input, boolean training) {
+    public JMatrix trainableForwardPass(JMatrix input, boolean training) {
         if (training) {
             lastInput = input;
         }
@@ -151,7 +142,7 @@ public class Conv2D extends ParametricLayer<Conv2D> {
     }
 
     @Override
-    public JMatrix backward(JMatrix input) {
+    public JMatrix trainableBackwardPass(JMatrix input) {
         // Calculate output dimensions
         int outputHeight, outputWidth;
         if (padding.equals("same_padding")) {
@@ -401,35 +392,5 @@ public class Conv2D extends ParametricLayer<Conv2D> {
     @Override
     public JMatrix[] getParameterGradients() {
         return new JMatrix[]{dFilters, dBiases};
-    }
-
-
-    @Override
-    public int[] outputShape() {
-        int[] outputShape;
-        if (getOutput() != null) {
-            outputShape = getOutput().shape();
-        } else {
-            int[] inputShape = getInputShape();
-            int[] prevShape = new int[]{1, inputShape[1], inputShape[2], inputShape[3]};
-            
-            if (padding.equals("same_padding")) {
-                outputShape = new int[]{
-                    prevShape[0],
-                    numFilters,
-                    (int)Math.ceil((double)prevShape[2] / stride),
-                    (int)Math.ceil((double)prevShape[3] / stride)
-                };
-            } else { // valid padding
-                outputShape = new int[]{
-                    prevShape[0],
-                    numFilters,
-                    (prevShape[2] - filterSize) / stride + 1,
-                    (prevShape[3] - filterSize) / stride + 1
-                };
-            }
-        }
-        return outputShape;
-    }
-   
+    }   
 }

@@ -5,7 +5,16 @@ import jflow.utils.JPlot;
 import jflow.utils.Metrics;
 
 // Static import for cleaner UI
-import static jflow.model.Builder.*;
+import static jflow.model.Builder.Conv2D;
+import static jflow.model.Builder.Swish;
+import static jflow.model.Builder.BatchNorm;
+import static jflow.model.Builder.Dropout;
+import static jflow.model.Builder.MaxPool2D;
+import static jflow.model.Builder.Flatten;
+import static jflow.model.Builder.Dense;
+import static jflow.model.Builder.Sigmoid;
+import static jflow.model.Builder.Adam;
+import static jflow.model.Builder.ModelCheckpoint;
 /**
  * Demo to train a convolutional neural network (CNN)
  * to classify trucks vs. automobiles using the CIFAR-10 dataset.
@@ -20,7 +29,6 @@ public class CNN {
             .add(Conv2D(filters, 3, 1, "same_padding"))
             .add(Swish())
             .add(BatchNorm())
-            .add(Dropout(0.2))
 
             .add(MaxPool2D(2, 2));
 
@@ -74,14 +82,7 @@ public class CNN {
         );
 
         // Build the model
-        Sequential model = new Sequential("Cifar10_CNN")
-            .setInputShape(
-                InputShape(
-                    COLOR_CHANNELS, 
-                    IMAGE_SIZE, 
-                    IMAGE_SIZE
-                )
-            ); 
+        Sequential model = new Sequential("Cifar10_CNN");
 
         // Block 1
         addConvBlock(model, 32);
@@ -91,7 +92,6 @@ public class CNN {
 
         // Block 3
         addConvBlock(model, 128);
-
 
         // Flatten and Dense layers
         model
@@ -103,7 +103,10 @@ public class CNN {
             .add(Dense(1))
             .add(Sigmoid()) // Sigmoid for binary classification
 
-            .summary();
+            // Pass a dummy tensor to specify input shape
+            .summary(JMatrix.zeros(1, COLOR_CHANNELS, IMAGE_SIZE, IMAGE_SIZE));
+
+        System.exit(0);
 
     // Try out different optimizers
         // model.compile(SGD(0.01, 0.9, true));

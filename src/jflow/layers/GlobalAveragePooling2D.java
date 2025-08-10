@@ -72,10 +72,4 @@ public class GlobalAveragePooling2D extends ShapeAlteringLayer{
 
         return trackGradient(expanded);
     }
-
-    @Override
-    public int[] outputShape() {
-        // Channels of the previous layer
-        return new int[]{1, getPreviousLayer().outputShape()[1]};
-    }
 }

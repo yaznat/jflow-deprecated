@@ -25,18 +25,16 @@ public class LayerNorm extends NormalizationLayer<LayerNorm> {
     }
     
     @Override
-    protected int[] parameterShape() {
-        int[] prevShape = getPreviousLayer().outputShape();
-
-        // Normalize along H in NCHW - this is embed_dim in transformers
-        this.embedDim = prevShape[2];
+    protected int[] parameterShape(int[] inputShape) {
+        // Normalize along H in NCHW - this is the embedding dimension in transformers
+        this.embedDim = inputShape[2];
 
         return new int[]{embedDim, 1, 1, 1};
     }
 
 
     @Override
-    public JMatrix forward(JMatrix input, boolean training) {
+    public JMatrix trainableForwardPass(JMatrix input, boolean training) {
         JMatrix gamma = getGamma();
         JMatrix beta = getBeta();
         final double EPSILON = getEpsilon();
@@ -101,7 +99,7 @@ public class LayerNorm extends NormalizationLayer<LayerNorm> {
     }
 
     @Override
-    public JMatrix backward(JMatrix dOutput) {
+    public JMatrix trainableBackwardPass(JMatrix dOutput) {
         JMatrix gamma = getGamma();
         JMatrix dGamma = getDGamma();
         JMatrix dBeta = getDBeta();

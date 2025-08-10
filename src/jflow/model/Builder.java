@@ -165,13 +165,22 @@ public class Builder {
     }
 
     /**
-     * Reshapes data in forward() and return it to its original shape in backward().
+     * Reshapes data in forward() and returns it to its original shape in backward().
      * @param channels              The channel dimension to reshape to.
      * @param height                The height dimension to reshape to.
      * @param width                 The width dimension to reshape to.
      */
     public static Reshape Reshape(int channels, int height, int width) {
         return new Reshape(-1, channels, height, width);
+    }
+
+    /**
+     * Reshapes data in forward() and returns it to its original shape in backward().
+     * @param mode                  Select from common methods of reshaping. Supported: <p>
+     * <ul> <li> "merge_batch_seq" <li> "split_batch_seq" </ul>
+     */
+    public static Reshape Reshape(String mode) {
+        return new Reshape(mode);
     }
 
     /**

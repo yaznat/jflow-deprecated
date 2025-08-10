@@ -59,15 +59,8 @@ public class Dropout extends ShapePreservingLayer{
 
     @Override
     public JMatrix forward(JMatrix input, boolean training) {
-        boolean convolutional = getPreviousShapeInfluencer() instanceof Conv2D;
-
-        if (convolutional) {
-            // (N, C, 1, 1) -- Spatial dropout
-            generateDropoutMask(input.shape(0), input.shape(1));
-        } else {
-            // (N, F) -- elementwise broadcast
-            generateDropoutMask(input.shape(0), input.shape(1) * input.shape(2) * input.shape(3));
-        }
+        // (N, F) -- elementwise broadcast
+        generateDropoutMask(input.shape(0), input.shape(1) * input.shape(2) * input.shape(3));
 
         return trackOutput(applyMask(input, training), training);
     }

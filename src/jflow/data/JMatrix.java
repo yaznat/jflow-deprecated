@@ -304,11 +304,26 @@ public class JMatrix {
     }
 
     /**
-     * The shape of the JMatrix as a String.
-     * @return {length, channels, height, width} visually organized into a String.
+     * The shape of the JMatrix visually organized as a String.
      */
     public String shapeAsString() {
         return "(" + length + "," + channels + "," + height + "," + width + ")";
+    }
+
+    /**
+     * The shape of the JMatrix visually organized as a String, with unused trailing dimensions excluded.
+     */
+    public String simpleShapeAsString() {
+        if (width == 1 && height == 1 && channels == 1) {
+            return "(" + length + ",)";
+        }
+        if (width == 1 && height == 1) {
+            return "(" + length + "," + channels + ")";
+        }
+        if (width == 1) {
+            return "(" + length + "," + channels + "," + height + ")";
+        }
+        return shapeAsString();
     }
     /**
      * Print the shape of the JMatrix in the format (length, channels, height, width).

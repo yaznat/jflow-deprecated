@@ -36,18 +36,4 @@ public class Flatten extends ShapeAlteringLayer{
 
         return trackGradient(gradient);
     }
-    
-    @Override
-    public int[] outputShape() {
-        if (lastInputShape == null) {
-            int[] prevOutputShape = getPreviousLayer().outputShape();
-            int flattenedSize = prevOutputShape[1] * prevOutputShape[2] * prevOutputShape[3];
-
-            return new int[]{1, flattenedSize};
-        }
-        int flattenedSize = lastInputShape[1] * lastInputShape[2] * lastInputShape[3];
-
-        return new int[]{1, flattenedSize};
-    }
-    
 }
