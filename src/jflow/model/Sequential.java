@@ -729,7 +729,7 @@ public class Sequential{
         String[][] layerTypes = new String[numLayers + 2][2];
         layerTypes[0][0] = "Layer";
         layerTypes[0][1] = "type";
-        layerTypes[1][0] = "input";
+        layerTypes[1][0] = "dummy_input";
         layerTypes[1][1] = "InputLayer";
 
         int targetIndex = 2; // Start after header

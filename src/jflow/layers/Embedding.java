@@ -58,10 +58,10 @@ public class Embedding extends ParametricLayer<Embedding> {
             embeddings = JMatrix.normal(vocabSize, embedDim, 1, 1, mean, stddev);
         }
 
-        embeddings.label("embedding"); 
+        embeddings.label("weights"); 
         gradEmbeddings = JMatrix
             .zeros(vocabSize, embedDim, 1, 1)
-            .label("dEmbedding");
+            .label("dWeights");
 
         if (tiedWeights == null) {
             setNumTrainableParameters(vocabSize * embedDim);

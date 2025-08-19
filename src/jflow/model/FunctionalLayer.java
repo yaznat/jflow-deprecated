@@ -35,12 +35,12 @@ public abstract class FunctionalLayer extends ShapeAlteringLayer {
 
     @Override
     public void printForwardDebug() {
-        printLayeredDebug(getName() + " forward output", true);
+        printLayeredDebug(getName(), true);
     }
 
     @Override
     public void printBackwardDebug() {
-        printLayeredDebug(getName() + " backward gradients", false);
+        printLayeredDebug(getName(), false);
     }
 
     // Recursively nest FunctionalLayer debug shells
