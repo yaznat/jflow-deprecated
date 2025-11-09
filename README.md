@@ -1,4 +1,5 @@
 # JFlow  
+**Note:** This library is deprecated. A new version is currently in development, featuring the same Java UI but a completely redesigned backend that uses JNI calls to native code, enabling GPU acceleration.  
 
 **JFlow** is a memory-efficient deep learning library written in Java, designed for both educational use and real-world machine learning applications. It provides low-level control over model training and supports limited hardware.  
 
